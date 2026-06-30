@@ -1,0 +1,16 @@
+; Phosphotyrosine (PTR) parameters for CHARMM36m
+; Source: MacKerell lab CHARMM36m force field
+; Atom types and charges from CHARMM CGenFF phospho-amino acid patch
+[ atomtypes ]
+; name  mass   charge  ptype   sigma    epsilon
+PG    30.974  0.0     A   3.74e-01  8.37e-01
+
+[ moleculetype ]
+; Name  nrexcl
+PTR     3
+
+[ atoms ]
+; nr  type  resnr  residue  atom  cgnr  charge  mass
+; Standard tyrosine atoms + phosphate group
+; Full parameters: copy from charmm36m-jul2022.ff/merged.rtp PTR entry
+; This stub is replaced by the full FF installation path in production
