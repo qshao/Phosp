@@ -71,6 +71,7 @@ phosp/
 │       ├── salt_bridges.py
 │       ├── contacts.py
 │       ├── mmpbsa.py
+│       ├── sasa.py
 │       ├── pca.py
 │       └── dccm.py
 ├── templates/
@@ -142,10 +143,7 @@ Plugins are auto-discovered at import time via `importlib` + `pkgutil` scanning 
 1. **Structure acquisition:** If UniProt ID, query AlphaFold DB API; fall back to RCSB PDB search.
 2. **Cleaning:** Strip non-essential HETATMs (configurable keep-list). Warn on missing residues or chain breaks.
 3. **Protonation:** Call PDB2PQR at target pH (default 7.4) to assign protonation states and add hydrogens.
-4. **Site selection:**
-   - *Config mode:* parse `modification.sites` from YAML into validated `PhosphoSite` objects.
-   - *Prediction mode:* call NetPhos 3.1, filter by `prediction_threshold` (default 0.5), write suggested sites to a review file; user confirms before pipeline continues.
-   - Both modes converge on a validated `list[PhosphoSite]`.
+4. **Site selection:** parse `modification.sites` from YAML into validated `PhosphoSite` objects. This is the only path used during `phosp run`. NetPhos prediction is a separate, user-invoked step (see CLI Section 7) that writes a suggested site list for the user to review and paste into their config — it never runs automatically as part of the pipeline.
 5. **Patch application:** Each `pSer/pThr/pTyr` modifier reads force-field-specific patch templates bundled with `phosp` and applies coordinate + atom-name transformations.
 
 **Outputs:** `output/stage1/modified.pdb`, `modification_manifest.json`, `protonation_report.txt`
@@ -186,8 +184,8 @@ Plugins are auto-discovered at import time via `importlib` + `pkgutil` scanning 
 | Phase | Method | Duration |
 |---|---|---|
 | Energy minimization | Steepest descent, max 50k steps | Until Fmax < 1000 kJ/mol/nm |
-| NVT equilibration | V-rescale thermostat, 300 K | 100 ps (heavy atom restraints) |
-| NPT equilibration | Parrinello-Rahman barostat, 1 bar | 1 ns (backbone restraints) |
+| NVT equilibration | V-rescale thermostat, 300 K | 50 ns (heavy atom restraints) |
+| NPT equilibration | Parrinello-Rahman barostat, 1 bar | 50 ns (backbone restraints) |
 | Production | NPT, no restraints | Config-specified (default 100 ns) |
 
 Each phase: `gmx grompp` to generate `.tpr`, then `gmx mdrun`. On non-zero exit, `SimulationError` is raised with the last 50 lines of the GROMACS log.
@@ -227,6 +225,7 @@ output/stage3/
 | Interaction | `salt_bridges` | Persistent salt bridge pairs |
 | Interaction | `contacts` | Residue-residue contact map |
 | Thermodynamic | `mmpbsa` | Per-residue energy decomposition |
+| Thermodynamic | `sasa` | Per-frame SASA for user-specified residue(s) |
 | Dynamic | `pca` | PC1/PC2 projections, explained variance |
 | Dynamic | `dccm` | Dynamic cross-correlation matrix |
 
@@ -249,8 +248,8 @@ input:
   ph: 7.4                              # protonation pH
 
 modification:
-  prediction_mode: false               # true = run NetPhos
-  prediction_threshold: 0.5
+  # prediction_mode is NOT used during `phosp run`.
+  # Run `phosp predict-sites config.yaml` separately to generate site suggestions.
   sites:
     - chain: A
       resid: 42
@@ -285,6 +284,8 @@ analysis:
   mmpbsa:
     method: pbsa                       # pbsa | gbsa
     temperature: 300
+  sasa:
+    residues: [42, 87]                 # resids to track; empty = whole protein
 ```
 
 ---
@@ -324,7 +325,7 @@ phosp validate config.yaml                     # dry-run config validation only
 ## 10. Out of Scope (v1)
 
 - Enhanced sampling methods (metadynamics, replica exchange)
-- Membrane protein builder (CHARMM-GUI-style)
+- Membrane protein builder (CHARMM-GUI-style; the `membrane_protein` preset covers basic rectangular box setup only)
 - Multi-protein batch orchestration (single protein per run in v1)
 - Non-canonical phosphorylation (pHis, pAsp, pLys)
 - GUI or web interface
