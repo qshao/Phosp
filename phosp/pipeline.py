@@ -52,7 +52,51 @@ class Pipeline:
                 "GROMACS (gmx) not found in PATH. "
                 "Install GROMACS and ensure gmx is on your PATH."
             )
+        self._check_forcefield()
         self._warn_disk_space()
+
+    def _check_forcefield(self) -> None:
+        ff = self.config.forcefield
+        if ff != "charmm36m":
+            return
+        import re
+        import subprocess
+        try:
+            out = subprocess.run(
+                ["gmx", "--version"], capture_output=True, text=True
+            ).stdout
+            m = re.search(r"Data prefix:\s*(.+)", out)
+            if not m:
+                return
+            top_dir = Path(m.group(1).strip()) / "share" / "gromacs" / "top"
+        except Exception:
+            return
+
+        ff_dir = top_dir / "charmm36m-jul2022.ff"
+        if not ff_dir.exists():
+            raise PhospError(
+                "CHARMM36m force field not found at:\n"
+                f"  {ff_dir}\n\n"
+                "Install it with:\n"
+                "  curl -O https://mackerell.umaryland.edu/download.php"
+                "?filename=CHARMM_ff_params_files/charmm36-jul2022.ff.tgz\n"
+                f"  tar -xzf charmm36-jul2022.ff.tgz -C {top_dir}\n"
+                f"  ln -s {top_dir}/charmm36-jul2022.ff {ff_dir}\n\n"
+                "See README.md for the full setup procedure."
+            )
+
+        res_file = top_dir / "residuetypes.dat"
+        missing = [
+            r for r in ("SEP", "TPO", "PTR")
+            if r not in res_file.read_text()
+        ]
+        if missing:
+            raise PhospError(
+                f"Phospho-residue types {missing} missing from residuetypes.dat.\n"
+                f"Add them with:\n"
+                f"  printf 'SEP\\tProtein\\nTPO\\tProtein\\nPTR\\tProtein\\n'"
+                f" >> {res_file}"
+            )
 
     def _warn_disk_space(self) -> None:
         try:
