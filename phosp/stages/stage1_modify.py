@@ -25,6 +25,23 @@ class Stage1Modify(Stage):
                 f"pdb2pqr binary '{pdb2pqr}' not found. "
                 "Install it with 'pip install pdb2pqr' or set gromacs.pdb2pqr in your config."
             )
+        if src.source == "pdb" and src.path.exists():
+            from Bio.PDB import PDBParser
+            parser = PDBParser(QUIET=True)
+            structure = parser.get_structure("_", str(src.path))
+            present = {
+                (chain.id, res.id[1])
+                for model in structure
+                for chain in model
+                for res in chain
+            }
+            for site in self.config.modification.sites:
+                if (site.chain, site.resid) not in present:
+                    raise StageInputError(
+                        f"Modification site chain {site.chain} resid {site.resid} "
+                        f"not found in {src.path}. "
+                        "Check the chain ID and residue number in your config."
+                    )
 
     def run(self) -> StageResult:
         out = self.output_root

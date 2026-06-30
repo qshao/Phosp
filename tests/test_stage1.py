@@ -40,3 +40,25 @@ def test_stage1_validate_inputs_missing_pdb(tmp_path):
     stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path)
     with pytest.raises(StageInputError, match="not found"):
         stage.validate_inputs()
+
+
+def test_stage1_validate_inputs_bad_site(tmp_path):
+    from phosp.exceptions import StageInputError
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.input.path = FIXTURES / "ubiquitin.pdb"
+    # Mutate site to use a chain that doesn't exist
+    cfg.modification.sites[0].chain = "Z"
+    stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path)
+    with pytest.raises(StageInputError, match="chain Z"):
+        stage.validate_inputs()
+
+
+def test_stage1_validate_inputs_bad_resid(tmp_path):
+    from phosp.exceptions import StageInputError
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.input.path = FIXTURES / "ubiquitin.pdb"
+    # Mutate site to use a resid that doesn't exist in chain A
+    cfg.modification.sites[0].resid = 9999
+    stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path)
+    with pytest.raises(StageInputError, match="resid 9999"):
+        stage.validate_inputs()
