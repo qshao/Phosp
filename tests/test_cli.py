@@ -132,8 +132,17 @@ def test_clean_aborts_on_no(tmp_path: Path):
     output_dir.mkdir()
 
     result = runner.invoke(app, ["clean", str(output_dir)], input="n\n")
-    assert result.exit_code != 0 or "Aborted" in result.output or "aborted" in result.output.lower()
+    assert result.exit_code != 0
     assert output_dir.exists()
+
+
+def test_clean_rejects_file_path(tmp_path: Path):
+    """phosp clean exits cleanly when given a file path instead of directory."""
+    f = tmp_path / "checkpoint.json"
+    f.write_text("{}")
+    result = runner.invoke(app, ["clean", str(f)])
+    assert result.exit_code == 1
+    assert f.exists()
 
 
 def test_clean_missing_dir(tmp_path: Path):

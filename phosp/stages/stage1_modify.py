@@ -34,6 +34,7 @@ class Stage1Modify(Stage):
                 for model in structure
                 for chain in model
                 for res in chain
+                if res.id[0] == " "
             }
             for site in self.config.modification.sites:
                 if (site.chain, site.resid) not in present:

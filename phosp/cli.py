@@ -325,6 +325,9 @@ def clean(
     if not output_dir.exists():
         typer.echo(f"Error: output directory not found: {output_dir}", err=True)
         raise typer.Exit(code=1)
+    if not output_dir.is_dir():
+        typer.echo(f"Error: not a directory: {output_dir}", err=True)
+        raise typer.Exit(code=1)
 
     typer.echo(f"Will remove: {output_dir.resolve()}")
     typer.confirm("Proceed? This cannot be undone.", abort=True)
