@@ -43,9 +43,18 @@ def test_stage3_runs_four_phases(tmp_path):
     assert phases_called == ["minimization", "nvt", "npt", "production"]
 
 
-def test_stage3_hpc_mode_writes_script_not_runs(tmp_path):
+def test_stage3_slurm_mode_writes_script_not_runs(tmp_path):
     stage = _make_stage3(tmp_path)
-    stage.config.simulation.hpc.enabled = True
+    stage.config.simulation.runner = "slurm"
+    stage.config.simulation.hpc.auto_submit = False
+    result = stage.run()
+    stage.engine.generate_hpc_script.assert_called_once()
+    stage.engine.run_phase.assert_not_called()
+
+
+def test_stage3_pbs_mode_writes_script_not_runs(tmp_path):
+    stage = _make_stage3(tmp_path)
+    stage.config.simulation.runner = "pbs"
     stage.config.simulation.hpc.auto_submit = False
     result = stage.run()
     stage.engine.generate_hpc_script.assert_called_once()

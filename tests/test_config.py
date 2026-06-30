@@ -26,7 +26,7 @@ def test_default_simulation_values():
     cfg = load_config(FIXTURES / "valid_config.yaml")
     assert cfg.simulation.production_time_ns == 100.0
     assert cfg.simulation.salt_concentration_mM == 150.0
-    assert cfg.simulation.hpc.enabled is False
+    assert cfg.simulation.runner == "local"
 
 
 def test_production_time_must_be_positive():

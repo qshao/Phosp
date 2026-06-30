@@ -117,10 +117,9 @@ simulation:
   water_model: tip3p          # tip3p | spce
   box_type: dodecahedron      # dodecahedron | cubic
   salt_concentration_mM: 150.0
-  gpu_id: ~                       # GPU index for mdrun (0, 1, …); ~ = auto-detect
-  hpc:
-    enabled: false
-    scheduler: slurm           # slurm | pbs
+  gpu_id: ~                       # GPU index for mdrun (0, 1, …); ~ = GROMACS auto-select
+  runner: local                   # "local" | "slurm" | "pbs"
+  hpc:                            # used when runner is slurm or pbs
     ntasks: 8
     gpus: 1
     walltime: "24:00:00"
@@ -187,10 +186,30 @@ All results are collected in an HTML report at `output/stage4/report.html`.
 
 ## HPC usage
 
-Set `hpc.enabled: true` in the config. Stage 2 generates a job script (`run_slurm.sh` or `run_pbs.sh`) in the output directory. With `auto_submit: true` the script is submitted automatically; otherwise submit it manually:
+Set `runner: slurm` (or `runner: pbs`) in the config. Stage 3 generates a job script in the output directory. With `hpc.auto_submit: true` the script is submitted automatically; otherwise submit it manually:
 
 ```bash
+# SLURM
+runner: slurm
+hpc:
+  ntasks: 16
+  gpus: 1
+  walltime: "48:00:00"
+  partition: gpu
+  auto_submit: false   # set true to submit automatically
+
 sbatch output/stage3/run_slurm.sh
+
+# PBS / Torque
+runner: pbs
+hpc:
+  ntasks: 16
+  gpus: 1
+  walltime: "48:00:00"
+  partition: gpu
+  auto_submit: false
+
+qsub output/stage3/run_pbs.sh
 ```
 
 ## Running tests

@@ -20,8 +20,7 @@ simulation:
   water_model: tip3p
   box_type: dodecahedron
   salt_concentration_mM: 150
-  hpc:
-    enabled: false
+  runner: local   # local | slurm | pbs
 
 analysis:
   plugins: [rmsd, rmsf]

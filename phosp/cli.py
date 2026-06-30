@@ -32,11 +32,10 @@ simulation:
   water_model: tip3p          # "tip3p" or "spce"
   box_type: dodecahedron      # "dodecahedron" or "cubic"
   salt_concentration_mM: 150.0
-  gpu_id: ~             # GPU index for mdrun (0, 1, …); ~ = auto-detect
+  gpu_id: ~             # GPU index for mdrun (0, 1, …); ~ = GROMACS auto-select
+  runner: local         # "local" | "slurm" | "pbs"
 
-  hpc:
-    enabled: false        # true to generate HPC job scripts
-    scheduler: slurm      # "slurm" or "pbs"
+  hpc:                  # used when runner is slurm or pbs
     ntasks: 8
     gpus: 1
     walltime: "24:00:00"

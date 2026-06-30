@@ -26,8 +26,13 @@ simulation:
   water_model: tip3p
   box_type: dodecahedron
   salt_concentration_mM: 150.0
-  hpc:
-    enabled: false
+  runner: local                   # "local" | "slurm" | "pbs"
+  hpc:                            # used when runner is slurm or pbs
+    ntasks: 8
+    gpus: 1
+    walltime: "24:00:00"
+    partition: gpu
+    auto_submit: false
 
 analysis:
   plugins:

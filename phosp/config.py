@@ -41,8 +41,7 @@ class ModificationConfig(BaseModel):
 
 
 class HPCConfig(BaseModel):
-    enabled: bool = False
-    scheduler: Literal["slurm", "pbs"] = "slurm"
+    """Resource settings used by the slurm and pbs runners."""
     ntasks: int = 8
     gpus: int = 1
     walltime: str = "24:00:00"
@@ -70,7 +69,8 @@ class SimulationConfig(BaseModel):
     water_model: Literal["tip3p", "spce"] = "tip3p"
     box_type: Literal["dodecahedron", "cubic"] = "dodecahedron"
     salt_concentration_mM: float = 150.0
-    gpu_id: int | None = None  # GPU index for mdrun; None = auto-detect
+    gpu_id: int | None = None  # GPU index for mdrun; None = let GROMACS auto-select
+    runner: Literal["local", "slurm", "pbs"] = "local"
     hpc: HPCConfig = Field(default_factory=HPCConfig)
 
     @field_validator("production_time_ns")
