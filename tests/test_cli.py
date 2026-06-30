@@ -182,3 +182,32 @@ def test_run_reference_dry_run_uses_reference_output_dir(tmp_path: Path):
     assert "reference" in str(output_root), (
         f"Expected 'reference' in output_root when --reference is passed, got: {output_root}"
     )
+    assert call_kwargs.kwargs.get("reference_mode") is True, (
+        f"Expected reference_mode=True, got: {call_kwargs.kwargs}"
+    )
+
+
+def test_run_reference_non_dry_run_passes_reference_mode(tmp_path: Path):
+    """--reference passes reference_mode=True and output_reference/ to Pipeline in normal run."""
+    import shutil as _shutil
+    from unittest.mock import patch, MagicMock
+
+    config_path = tmp_path / "config.yaml"
+    _shutil.copy(Path(__file__).parent / "fixtures" / "valid_config.yaml", config_path)
+    cfg_text = config_path.read_text().replace(
+        "tests/fixtures/ubiquitin.pdb",
+        str(Path(__file__).parent / "fixtures" / "ubiquitin.pdb"),
+    )
+    config_path.write_text(cfg_text)
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.execute.return_value = None
+
+    with patch("phosp.pipeline.Pipeline", return_value=mock_pipeline) as MockPipeline:
+        result = runner.invoke(app, ["run", str(config_path), "--reference"])
+
+    assert MockPipeline.called, f"Pipeline not called. Output: {result.output}"
+    kwargs = MockPipeline.call_args.kwargs
+    output_root = kwargs.get("output_root") or MockPipeline.call_args.args[1]
+    assert "reference" in str(output_root), f"Expected 'reference' in output_root, got: {output_root}"
+    assert kwargs.get("reference_mode") is True, f"Expected reference_mode=True, got: {kwargs}"

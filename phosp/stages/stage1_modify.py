@@ -75,6 +75,7 @@ class Stage1Modify(Stage):
             # Reference run: use protonated structure as-is (no phospho patches)
             modified_pdb = out / "modified.pdb"
             shutil.copy2(protonated, modified_pdb)
+            logger.info("Reference mode: skipping phosphorylation, using protonated structure as-is")
             manifest = []
         else:
             # 4. Apply phospho patches

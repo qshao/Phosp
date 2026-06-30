@@ -275,7 +275,7 @@ def status(
     checkpoint_path = output_dir / "checkpoint.json"
     if not checkpoint_path.exists():
         typer.echo(f"Error: no checkpoint found at {checkpoint_path}", err=True)
-        typer.echo(f"Tip: the output directory is usually <config-dir>/output/")
+        typer.echo(f"Tip: use <config-dir>/output/ for normal runs, <config-dir>/output_reference/ for --reference runs.")
         raise typer.Exit(code=1)
 
     data = json.loads(checkpoint_path.read_text())
