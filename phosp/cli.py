@@ -39,11 +39,12 @@ simulation:
   runner: local         # "local" | "slurm" | "pbs"
 
   hpc:                  # used when runner is slurm or pbs
-    ntasks: 8
+    ntasks: 8           # OpenMP threads per rank (SLURM: cpus-per-task)
     gpus: 1
     walltime: "24:00:00"
     partition: gpu
     auto_submit: false
+    # gromacs_module: gromacs/2026.0-cuda  # module to load; omit if GROMACS is already on PATH
 
 analysis:
   plugins:

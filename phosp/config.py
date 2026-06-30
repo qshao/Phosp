@@ -42,11 +42,12 @@ class ModificationConfig(BaseModel):
 
 class HPCConfig(BaseModel):
     """Resource settings used by the slurm and pbs runners."""
-    ntasks: int = 8
+    ntasks: int = 8          # OpenMP threads per rank (cpus-per-task for SLURM)
     gpus: int = 1
     walltime: str = "24:00:00"
     partition: str = "gpu"
     auto_submit: bool = False
+    gromacs_module: str | None = None  # e.g. "gromacs/2026.0-cuda"; None = skip module load
 
     @field_validator("ntasks")
     @classmethod

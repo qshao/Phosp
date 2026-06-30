@@ -94,12 +94,17 @@ def test_run_phase_omits_gpu_flag_when_gpu_id_is_none(tmp_path):
     assert "-gpu_id" not in mdrun_call.args[0]
 
 
+def _slurm_resources(**overrides):
+    base = {"ntasks": 8, "gpus": 1, "walltime": "24:00:00", "partition": "gpu", "gromacs_module": None}
+    return {**base, **overrides}
+
+
 def test_generate_slurm_script(tmp_path):
     engine = GROMACSEngine()
     work_dir = tmp_path / "stage3"
     script = engine.generate_hpc_script(
         scheduler="slurm",
-        resources={"ntasks": 8, "gpus": 1, "walltime": "24:00:00", "partition": "gpu"},
+        resources=_slurm_resources(),
         phases=["minimization", "nvt", "npt", "production"],
         output_dir=tmp_path,
         work_dir=work_dir,
@@ -107,9 +112,73 @@ def test_generate_slurm_script(tmp_path):
     assert script.exists()
     content = script.read_text()
     assert "#SBATCH" in content
-    assert "gmx mdrun" in content          # default binary
+    assert "--cpus-per-task=8" in content   # not --ntasks
+    assert "--ntasks=1" in content
+    assert "gmx mdrun" in content
     assert "../stage2/minimization.mdp" in content
     assert str(work_dir) in content
+
+
+def test_slurm_script_log_paths_are_absolute(tmp_path):
+    engine = GROMACSEngine()
+    work_dir = tmp_path / "stage3"
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        work_dir=work_dir,
+    )
+    content = script.read_text()
+    # Log paths must be absolute so they land in the job dir, not wherever sbatch is run
+    assert f"--output={work_dir}/slurm_" in content
+    assert f"--error={work_dir}/slurm_" in content
+
+
+def test_slurm_script_module_load_when_configured(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(gromacs_module="gromacs/2026.0-cuda"),
+        phases=["minimization"],
+        output_dir=tmp_path,
+    )
+    assert "module load gromacs/2026.0-cuda" in script.read_text()
+
+
+def test_slurm_script_no_module_load_when_none(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(gromacs_module=None),
+        phases=["minimization"],
+        output_dir=tmp_path,
+    )
+    assert "module load" not in script.read_text()
+
+
+def test_slurm_script_gpu_id_propagated(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=1,
+    )
+    assert "-gpu_id 1" in script.read_text()
+
+
+def test_slurm_script_no_gpu_id_when_none(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    assert "-gpu_id" not in script.read_text()
 
 
 def test_generate_slurm_script_custom_binary(tmp_path):
@@ -117,14 +186,30 @@ def test_generate_slurm_script_custom_binary(tmp_path):
     work_dir = tmp_path / "stage3"
     script = engine.generate_hpc_script(
         scheduler="slurm",
-        resources={"ntasks": 8, "gpus": 1, "walltime": "24:00:00", "partition": "gpu"},
+        resources=_slurm_resources(),
         phases=["minimization", "nvt", "npt", "production"],
         output_dir=tmp_path,
         work_dir=work_dir,
     )
     content = script.read_text()
-    assert "gmx_mpi mdrun" in content
     assert "gmx_mpi grompp" in content
+    # MPI build: mdrun is launched via srun, not with -ntmpi
+    assert "srun" in content
+    assert "gmx_mpi mdrun" in content
+    assert "-ntmpi" not in content
+
+
+def test_slurm_script_non_mpi_uses_ntmpi(tmp_path):
+    engine = GROMACSEngine(binary="gmx")
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+    )
+    content = script.read_text()
+    assert "-ntmpi 1" in content
+    assert "srun" not in content
 
 
 def test_engine_uses_configured_binary(tmp_path):

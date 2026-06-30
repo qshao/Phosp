@@ -140,6 +140,7 @@ class GROMACSEngine(MDEngine):
         phases: list[str],
         output_dir: Path,
         work_dir: Path | None = None,
+        gpu_id: int | None = None,
     ) -> Path:
         from jinja2 import Environment, FileSystemLoader
         templates_dir = Path(__file__).parent.parent / "templates"
@@ -150,6 +151,7 @@ class GROMACSEngine(MDEngine):
             phases=phases,
             output_dir=str(work_dir or output_dir),
             binary=self._binary,
+            gpu_id=gpu_id,
         )
         script = output_dir / f"run_{scheduler}.sh"
         script.write_text(rendered)

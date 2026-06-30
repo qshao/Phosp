@@ -289,11 +289,12 @@ simulation:
   runner: local                   # "local", "slurm", or "pbs" — see HPC section
 
   hpc:                            # only used when runner is slurm or pbs
-    ntasks: 8                     # CPU cores / MPI tasks
+    ntasks: 8                     # OpenMP threads per rank (maps to --cpus-per-task in SLURM)
     gpus: 1
     walltime: "24:00:00"
     partition: gpu                # cluster queue / partition name
     auto_submit: false            # true = sbatch/qsub automatically; false = write script only
+    # gromacs_module: gromacs/2026.0-cuda   # environment module to load; omit if not needed
 ```
 
 ### `analysis` block
@@ -458,11 +459,12 @@ gromacs:
 simulation:
   runner: slurm
   hpc:
-    ntasks: 32
+    ntasks: 32               # OpenMP threads (SLURM: --cpus-per-task)
     gpus: 1
     walltime: "48:00:00"
     partition: gpu
     auto_submit: false        # set true to submit automatically
+    gromacs_module: gromacs/2026.0-cuda   # adjust to match your cluster's module name
 ```
 
 ### Workflow

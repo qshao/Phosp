@@ -23,6 +23,7 @@ class SlurmRunner(SimulationRunner):
             "gpus": hpc.gpus,
             "walltime": hpc.walltime,
             "partition": hpc.partition,
+            "gromacs_module": hpc.gromacs_module,
         }
         for phase in phases:
             (output_dir / phase).mkdir(parents=True, exist_ok=True)
@@ -33,6 +34,7 @@ class SlurmRunner(SimulationRunner):
             phases=phases,
             output_dir=output_dir,
             work_dir=work_dir,
+            gpu_id=gpu_id,
         )
 
         job_id: str | None = None

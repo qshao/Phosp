@@ -1,23 +1,45 @@
 #!/bin/bash
-#SBATCH --job-name=phosp
-#SBATCH --ntasks={{ resources.ntasks }}
+#SBATCH --job-name=phosp_md
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task={{ resources.ntasks }}
 #SBATCH --gres=gpu:{{ resources.gpus }}
 #SBATCH --time={{ resources.walltime }}
 #SBATCH --partition={{ resources.partition }}
-#SBATCH --output=slurm_%j.out
-#SBATCH --error=slurm_%j.err
+#SBATCH --output={{ output_dir }}/slurm_%j.out
+#SBATCH --error={{ output_dir }}/slurm_%j.err
 
-module load gromacs/2023.3-cuda || module load gromacs
+{% if resources.gromacs_module %}
+module load {{ resources.gromacs_module }}
+{% else %}
+# Set hpc.gromacs_module in your phosp config to load the GROMACS environment module.
+{% endif %}
 
 set -euo pipefail
 WORK={{ output_dir }}
 cd "$WORK"
 
+{% set is_mpi = '_mpi' in binary %}
 {% for phase in phases %}
 echo "=== Running {{ phase }} ==="
-{{ binary }} grompp -f ../stage2/{{ phase }}.mdp -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
-    -p ../stage2/topol.top -o {{ phase }}/{{ phase }}.tpr \
+
+{{ binary }} grompp \
+    -f ../stage2/{{ phase }}.mdp \
+    -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
+    -p ../stage2/topol.top \
+    -o {{ phase }}/{{ phase }}.tpr \
     {% if phase in ['nvt', 'npt'] %}-r ../stage2/ions.gro {% endif %}-maxwarn 2
-{{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} -ntmpi 1 \
-    -ntomp {{ resources.ntasks }} -gpu_id 0
+
+{% if is_mpi %}
+srun -n 1 --cpus-per-task=$SLURM_CPUS_PER_TASK \
+    {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
+    -ntomp $SLURM_CPUS_PER_TASK \
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }}{% endif %}
+
+{% else %}
+{{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
+    -ntmpi 1 -ntomp $SLURM_CPUS_PER_TASK \
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }}{% endif %}
+
+{% endif %}
 {% endfor %}
