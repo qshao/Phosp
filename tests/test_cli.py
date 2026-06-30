@@ -149,3 +149,36 @@ def test_clean_missing_dir(tmp_path: Path):
     """phosp clean exits with error if output_dir doesn't exist."""
     result = runner.invoke(app, ["clean", str(tmp_path / "nonexistent")])
     assert result.exit_code == 1
+
+
+def test_run_reference_dry_run_uses_reference_output_dir(tmp_path: Path):
+    """phosp run --reference --dry-run creates output_reference/ not output/."""
+    import shutil as _shutil
+    from unittest.mock import patch, MagicMock
+
+    config_path = tmp_path / "config.yaml"
+    _shutil.copy(
+        Path(__file__).parent / "fixtures" / "valid_config.yaml",
+        config_path,
+    )
+    # Patch the PDB path in the config so load_config doesn't fail
+    cfg_text = config_path.read_text().replace(
+        "tests/fixtures/ubiquitin.pdb",
+        str(Path(__file__).parent / "fixtures" / "ubiquitin.pdb"),
+    )
+    config_path.write_text(cfg_text)
+
+    mock_pipeline = MagicMock()
+    mock_pipeline._preflight_checks.return_value = None
+    mock_pipeline.execute.return_value = None
+
+    with patch("phosp.pipeline.Pipeline", return_value=mock_pipeline) as MockPipeline:
+        result = runner.invoke(app, ["run", str(config_path), "--reference", "--dry-run"])
+
+    assert MockPipeline.called, f"Pipeline not called. Output: {result.output}"
+    call_kwargs = MockPipeline.call_args
+    # output_root is the second positional arg or keyword
+    output_root = call_kwargs.kwargs.get("output_root") or call_kwargs.args[1]
+    assert "reference" in str(output_root), (
+        f"Expected 'reference' in output_root when --reference is passed, got: {output_root}"
+    )

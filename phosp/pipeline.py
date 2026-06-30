@@ -27,10 +27,12 @@ class Pipeline:
         output_root: Path,
         ui: PhospUI | None = None,
         config_path: Path | None = None,
+        reference_mode: bool = False,
     ) -> None:
         self.config = config
         self.output_root = output_root
         self.ui = ui
+        self.reference_mode = reference_mode
         self.output_root.mkdir(parents=True, exist_ok=True)
         self.checkpoint = Checkpoint(output_root / "checkpoint.json")
         self._config_hash: str | None = None
@@ -229,7 +231,7 @@ class Pipeline:
         match stage_name:
             case "stage1":
                 from phosp.stages.stage1_modify import Stage1Modify
-                return Stage1Modify(self.config, engine, ff, output_dir, ui=self.ui)
+                return Stage1Modify(self.config, engine, ff, output_dir, ui=self.ui, reference_mode=self.reference_mode)
             case "stage2":
                 from phosp.stages.stage2_prepare import Stage2Prepare
                 return Stage2Prepare(self.config, engine, ff, output_dir, ui=self.ui)

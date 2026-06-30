@@ -97,6 +97,7 @@ def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Check config and tools without executing stages"),
     log_level: str = typer.Option("INFO", "--log-level", help="DEBUG|INFO|WARNING|ERROR"),
     log_file: Path = typer.Option(None, "--log-file", help="Write logs to this file"),
+    reference: bool = typer.Option(False, "--reference", help="Run unmodified protein as reference (skips phosphorylation). Output goes to output_reference/."),
 ) -> None:
     from phosp.config import load_config
     from phosp.logging import configure_logging
@@ -114,12 +115,13 @@ def run(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1)
 
+    output_root = config_path.parent / ("output_reference" if reference else "output")
+
     if dry_run:
         if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
             typer.echo(f"Error: input PDB not found: {cfg.input.path}", err=True)
             raise typer.Exit(code=1)
-        output_root = config_path.parent / "output"
-        p = Pipeline(cfg, output_root=output_root, config_path=config_path)
+        p = Pipeline(cfg, output_root=output_root, config_path=config_path, reference_mode=reference)
         p._preflight_checks()
         p.execute(dry_run=True, start_from=start_from, only_stages=stages)
         estimated_gb = cfg.simulation.production_time_ns * 1.0 + 0.5
@@ -128,7 +130,7 @@ def run(
         return
 
     ui = PhospUI()
-    Pipeline(cfg, output_root=config_path.parent / "output", ui=ui, config_path=config_path).execute(
+    Pipeline(cfg, output_root=output_root, ui=ui, config_path=config_path, reference_mode=reference).execute(
         start_from=start_from, only_stages=stages
     )
 
