@@ -133,6 +133,7 @@ class GROMACSEngine(MDEngine):
         resources: dict,
         phases: list[str],
         output_dir: Path,
+        work_dir: Path | None = None,
     ) -> Path:
         from jinja2 import Environment, FileSystemLoader
         templates_dir = Path(__file__).parent.parent / "templates"
@@ -141,7 +142,7 @@ class GROMACSEngine(MDEngine):
         rendered = template.render(
             resources=resources,
             phases=phases,
-            output_dir=str(output_dir),
+            output_dir=str(work_dir or output_dir),
         )
         script = output_dir / f"run_{scheduler}.sh"
         script.write_text(rendered)

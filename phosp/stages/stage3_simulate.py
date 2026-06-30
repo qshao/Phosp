@@ -19,6 +19,12 @@ class Stage3Simulate(Stage):
             raise StageInputError(
                 f"ions.gro not found in {stage2_dir}. Run stage2 first."
             )
+        for phase in _PHASES:
+            mdp = stage2_dir / f"{phase}.mdp"
+            if not mdp.exists():
+                raise StageInputError(
+                    f"{phase}.mdp not found in {stage2_dir}. Run stage2 first."
+                )
 
     def run(self) -> StageResult:
         out = self.output_root
@@ -63,6 +69,10 @@ class Stage3Simulate(Stage):
             "walltime": hpc.walltime,
             "partition": hpc.partition,
         }
+        # final_out: the path stage3 will have after the tmp→final rename.
+        # The script file is written to out (tmp dir, which exists), while the
+        # paths inside the script reference final_out (the location the HPC job
+        # will see at submission time).
         final_out = out.parent / out.name.lstrip('.').removesuffix('_tmp') if out.name.startswith('.') else out
         for phase in _PHASES:
             (out / phase).mkdir(parents=True, exist_ok=True)
@@ -70,7 +80,8 @@ class Stage3Simulate(Stage):
             scheduler=hpc.scheduler,
             resources=resources,
             phases=_PHASES,
-            output_dir=final_out,
+            output_dir=out,       # write here (tmp dir — exists now, gets renamed)
+            work_dir=final_out,   # WORK= path referenced inside the script
         )
         if hpc.auto_submit:
             cmd = "sbatch" if hpc.scheduler == "slurm" else "qsub"
