@@ -48,8 +48,11 @@ class Pipeline:
         only_stages: str | None = None,
         dry_run: bool = False,
     ) -> None:
+        # Validate --stages/--start-from before preflight checks, so a typo
+        # surfaces immediately instead of after a (possibly slow) GROMACS/
+        # force-field/disk-space check.
+        stages = self._resolve_stages(start_from, only_stages)
         if dry_run:
-            stages = self._resolve_stages(start_from, only_stages)
             logger.info("Dry run: would execute stages: %s", ", ".join(stages))
             return
         self._preflight_checks()
@@ -62,7 +65,6 @@ class Pipeline:
                     "Use --start-from stage1 to re-run from scratch."
                 )
         self._clean_orphan_tmpdirs()
-        stages = self._resolve_stages(start_from, only_stages)
         for stage_name in stages:
             if self.checkpoint.is_complete(stage_name):
                 logger.info("Skipping %s (already complete)", stage_name)

@@ -170,6 +170,24 @@ def test_resolve_stages_raises_on_unknown_start_from(tmp_path):
         p._resolve_stages(start_from="stageX", only_stages=None)
 
 
+def test_invalid_stages_caught_before_preflight_checks(tmp_path):
+    """A --stages typo must surface immediately, without running (possibly slow)
+    preflight checks like the GROMACS binary/force-field lookup first."""
+    p = _make_pipeline(tmp_path)
+    with patch.object(p, "_preflight_checks") as mock_preflight:
+        with pytest.raises(PhospError, match="Unknown stage"):
+            p.execute(only_stages="1,foo")
+    mock_preflight.assert_not_called()
+
+
+def test_invalid_start_from_caught_before_preflight_checks(tmp_path):
+    p = _make_pipeline(tmp_path)
+    with patch.object(p, "_preflight_checks") as mock_preflight:
+        with pytest.raises(PhospError, match="Unknown stage"):
+            p.execute(start_from="stageX")
+    mock_preflight.assert_not_called()
+
+
 def test_preflight_checks_pdb2pqr_binary(tmp_path):
     """Stage1Modify.validate_inputs raises PhospError when pdb2pqr is not found."""
     from phosp.stages.stage1_modify import Stage1Modify
