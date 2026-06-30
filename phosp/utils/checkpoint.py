@@ -14,6 +14,13 @@ class Checkpoint:
             return json.loads(self.path.read_text())
         return {"completed_stages": [], "artifacts": {}}
 
+    def mark_stage_started(self, stage: str) -> None:
+        self._data[f"{stage}_started_at"] = datetime.now().isoformat()
+        self.path.write_text(json.dumps(self._data, indent=2))
+
+    def get_duration(self, stage: str) -> float | None:
+        return self._data.get(f"{stage}_duration_seconds")
+
     def mark_complete(
         self,
         stage: str,
@@ -24,6 +31,14 @@ class Checkpoint:
             self._data["completed_stages"].append(stage)
         self._data["artifacts"][stage] = artifacts
         self._data[f"{stage}_completed_at"] = datetime.now().isoformat()
+        started_at_str = self._data.get(f"{stage}_started_at")
+        if started_at_str:
+            try:
+                started = datetime.fromisoformat(started_at_str)
+                duration = (datetime.now() - started).total_seconds()
+                self._data[f"{stage}_duration_seconds"] = duration
+            except (ValueError, TypeError):
+                pass
         if config_hash is not None and "config_hash" not in self._data:
             self._data["config_hash"] = config_hash
         self.path.write_text(json.dumps(self._data, indent=2))

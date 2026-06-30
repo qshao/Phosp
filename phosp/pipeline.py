@@ -197,6 +197,7 @@ class Pipeline:
         start = time.monotonic()
         renamed = False
         try:
+            self.checkpoint.mark_stage_started(stage_name)
             stage.validate_inputs()
             result = stage.run()
             if final_dir.exists():

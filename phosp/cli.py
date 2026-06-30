@@ -246,6 +246,20 @@ def init(
     typer.echo(f"  3. phosp run {path}")
 
 
+def _fmt_duration(seconds: float | None) -> str:
+    if seconds is None:
+        return "—"
+    if seconds < 1:
+        return "< 1 s"
+    if seconds < 60:
+        return f"{int(seconds)} s"
+    mins, secs = divmod(int(seconds), 60)
+    if mins < 60:
+        return f"{mins} m {secs} s"
+    hours, mins = divmod(mins, 60)
+    return f"{hours} h {mins} m"
+
+
 @app.command(help="Show completed stages and checkpoint state for a pipeline run.")
 def status(
     output_dir: Path = typer.Argument(..., help="Pipeline output directory (contains checkpoint.json)"),
@@ -278,6 +292,7 @@ def status(
     table.add_column("Status")
     table.add_column("Completed At")
     table.add_column("Key Artifacts")
+    table.add_column("Duration")
 
     for s in ["stage1", "stage2", "stage3", "stage4"]:
         if s in completed:
@@ -285,11 +300,13 @@ def status(
             completed_at = data.get(f"{s}_completed_at", "")
             artifacts = data.get("artifacts", {}).get(s, {})
             artifact_str = ", ".join(Path(v).name for v in list(artifacts.values())[:3])
+            duration_str = _fmt_duration(data.get(f"{s}_duration_seconds"))
         else:
             status_str = "[dim]pending[/]"
             completed_at = ""
             artifact_str = ""
-        table.add_row(_labels[s], status_str, completed_at, artifact_str)
+            duration_str = "—"
+        table.add_row(_labels[s], status_str, completed_at, artifact_str, duration_str)
 
     console.print(table)
 

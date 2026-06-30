@@ -88,3 +88,27 @@ def test_run_dry_run_skips_execution(tmp_path: Path):
     if out.exists():
         for stage_num in range(1, 5):
             assert not (out / f"stage{stage_num}").exists()
+
+
+def test_status_shows_duration_column(tmp_path: Path):
+    out = tmp_path / "output"
+    out.mkdir()
+    (out / "checkpoint.json").write_text(json.dumps({
+        "completed_stages": ["stage1"],
+        "artifacts": {},
+        "stage1_completed_at": "2026-06-30T10:00:42",
+        "stage1_duration_seconds": 42.0,
+    }))
+    result = runner.invoke(app, ["status", str(out)])
+    assert "Duration" in result.output
+    assert "42 s" in result.output
+
+
+def test_checkpoint_stores_duration_after_stage_completes(tmp_path: Path):
+    from phosp.utils.checkpoint import Checkpoint
+    cp = Checkpoint(tmp_path / "checkpoint.json")
+    cp.mark_stage_started("stage1")
+    cp.mark_complete("stage1", {})
+    dur = cp.get_duration("stage1")
+    assert dur is not None
+    assert dur >= 0.0
