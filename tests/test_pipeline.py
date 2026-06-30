@@ -168,3 +168,14 @@ def test_resolve_stages_raises_on_unknown_start_from(tmp_path):
     p = _make_pipeline(tmp_path)
     with pytest.raises(PhospError, match="Unknown stage"):
         p._resolve_stages(start_from="stageX", only_stages=None)
+
+
+def test_preflight_checks_pdb2pqr_binary(tmp_path):
+    """_preflight_checks uses cfg.gromacs.pdb2pqr, not a hardcoded string."""
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.gromacs.pdb2pqr = "/custom/pdb2pqr"
+    p = Pipeline(cfg, output_root=tmp_path / "output")
+    with patch("phosp.pipeline.shutil.which", side_effect=lambda b: "/usr/bin/gmx" if "gmx" in b else None), \
+         patch("phosp.pipeline.Path.is_file", return_value=False):
+        with pytest.raises(PhospError, match="pdb2pqr"):
+            p._preflight_checks()

@@ -82,10 +82,12 @@ def clean_structure(
     return output
 
 
-def protonate_structure(pdb: Path, output: Path, ph: float = 7.4) -> Path:
+def protonate_structure(
+    pdb: Path, output: Path, ph: float = 7.4, pdb2pqr_binary: str = "pdb2pqr"
+) -> Path:
     pqr_output = output.with_suffix(".pqr")
     cmd = [
-        "pdb2pqr",
+        pdb2pqr_binary,
         "--ff=CHARMM",
         "--titration-state-method=propka",
         f"--with-ph={ph}",

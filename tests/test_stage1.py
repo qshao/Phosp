@@ -18,7 +18,7 @@ def _make_stage(tmp_path, cfg_overrides=None):
 def test_stage1_creates_modified_pdb(tmp_path):
     stage = _make_stage(tmp_path)
     # Mock protonate_structure to avoid requiring pdb2pqr in CI
-    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph: (o.parent / "input.pdb").rename(o) or o):
+    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph, pdb2pqr_binary="pdb2pqr": (o.parent / "input.pdb").rename(o) or o):
         result = stage.run()
     assert (tmp_path / "stage1" / "modified.pdb").exists()
     assert result.stage == "stage1"
@@ -26,7 +26,7 @@ def test_stage1_creates_modified_pdb(tmp_path):
 
 def test_stage1_writes_manifest(tmp_path):
     stage = _make_stage(tmp_path)
-    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph: (o.parent / "input.pdb").rename(o) or o):
+    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph, pdb2pqr_binary="pdb2pqr": (o.parent / "input.pdb").rename(o) or o):
         stage.run()
     manifest = json.loads((tmp_path / "stage1" / "modification_manifest.json").read_text())
     assert isinstance(manifest, list)

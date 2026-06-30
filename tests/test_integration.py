@@ -52,7 +52,7 @@ def test_pipeline_stages_1_and_2(tmp_path):
     with patch("phosp.pipeline.shutil.which", return_value="/usr/bin/gmx"), \
          patch("phosp.pipeline.GROMACSEngine", return_value=engine), \
          patch("phosp.stages.stage1_modify.protonate_structure",
-               side_effect=lambda p, o, ph: shutil.copy(p, o) or o), \
+               side_effect=lambda p, o, ph, pdb2pqr_binary="pdb2pqr": shutil.copy(p, o) or o), \
          patch("phosp.forcefields.charmm36m.CHARMM36mFF.patch_topology",
                side_effect=lambda top, sites: top):
         pipeline.execute(only_stages="1,2")

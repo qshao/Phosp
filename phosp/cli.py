@@ -28,6 +28,7 @@ protocol: globular_protein  # "globular_protein", "membrane_protein", or "phosph
 
 gromacs:
   binary: gmx           # gmx binary name or full path (e.g. "gmx_mpi", "/opt/gromacs/bin/gmx")
+  # pdb2pqr: pdb2pqr   # pdb2pqr binary name or full path; default is "pdb2pqr"
 
 simulation:
   production_time_ns: 100.0   # production run length in ns
@@ -154,8 +155,12 @@ def validate(
             f"GROMACS binary '{gmx}' not found — "
             "install GROMACS or set gromacs.binary in the config"
         )
-    if shutil.which("pdb2pqr") is None:
-        errors.append("pdb2pqr not found in PATH — run: pip install pdb2pqr")
+    pdb2pqr = cfg.gromacs.pdb2pqr
+    if shutil.which(pdb2pqr) is None and not Path(pdb2pqr).is_file():
+        errors.append(
+            f"pdb2pqr binary '{pdb2pqr}' not found — "
+            "run: pip install pdb2pqr  (or set gromacs.pdb2pqr in config)"
+        )
     if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
         errors.append(f"input PDB not found: {cfg.input.path}")
 
@@ -174,7 +179,7 @@ def validate(
 
     typer.echo("  ✓ Config valid")
     typer.echo(f"  ✓ {gmx} found")
-    typer.echo("  ✓ pdb2pqr found")
+    typer.echo(f"  ✓ {pdb2pqr} found")
     typer.echo("  ✓ Force field ready")
 
 

@@ -53,6 +53,12 @@ class Pipeline:
                 f"GROMACS binary '{binary}' not found. "
                 "Set gromacs.binary in your config to the correct path or binary name."
             )
+        pdb2pqr = self.config.gromacs.pdb2pqr
+        if shutil.which(pdb2pqr) is None and not Path(pdb2pqr).is_file():
+            raise PhospError(
+                f"pdb2pqr binary '{pdb2pqr}' not found. "
+                "Install it with 'pip install pdb2pqr' or set gromacs.pdb2pqr in your config."
+            )
         self._check_forcefield()
         self._warn_disk_space()
 

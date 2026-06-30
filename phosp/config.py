@@ -122,6 +122,7 @@ class AnalysisConfig(BaseModel):
 class GROMACSConfig(BaseModel):
     binary: str = "gmx"  # path or name of the gmx binary (e.g. "gmx", "gmx_mpi", "/opt/gromacs/bin/gmx")
     timeout_minutes: int | None = None  # None = no limit; e.g. 120 for 2-hour hard cap
+    pdb2pqr: str = "pdb2pqr"  # name or full path, e.g. "/opt/pdb2pqr/bin/pdb2pqr"
 
 
 class PhospConfig(BaseModel):
