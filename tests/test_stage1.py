@@ -1,0 +1,42 @@
+import json
+from pathlib import Path
+from unittest.mock import patch
+import pytest
+from phosp.config import load_config
+from phosp.stages.stage1_modify import Stage1Modify
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _make_stage(tmp_path, cfg_overrides=None):
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    # Point input path to fixture
+    cfg.input.path = FIXTURES / "ubiquitin.pdb"
+    return Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path / "stage1")
+
+
+def test_stage1_creates_modified_pdb(tmp_path):
+    stage = _make_stage(tmp_path)
+    # Mock protonate_structure to avoid requiring pdb2pqr in CI
+    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph: (o.parent / "input.pdb").rename(o) or o):
+        result = stage.run()
+    assert (tmp_path / "stage1" / "modified.pdb").exists()
+    assert result.stage == "stage1"
+
+
+def test_stage1_writes_manifest(tmp_path):
+    stage = _make_stage(tmp_path)
+    with patch("phosp.stages.stage1_modify.protonate_structure", side_effect=lambda p, o, ph: (o.parent / "input.pdb").rename(o) or o):
+        stage.run()
+    manifest = json.loads((tmp_path / "stage1" / "modification_manifest.json").read_text())
+    assert isinstance(manifest, list)
+    assert manifest[0]["phospho_type"] == "pThr"
+
+
+def test_stage1_validate_inputs_missing_pdb(tmp_path):
+    from phosp.exceptions import StageInputError
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.input.path = Path("nonexistent.pdb")
+    stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path)
+    with pytest.raises(StageInputError, match="not found"):
+        stage.validate_inputs()

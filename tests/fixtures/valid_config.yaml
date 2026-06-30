@@ -6,7 +6,7 @@ input:
 modification:
   sites:
     - chain: A
-      resid: 65
+      resid: 66
       resname: THR
       phospho_type: pThr
 
