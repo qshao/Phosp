@@ -114,11 +114,16 @@ class AnalysisConfig(BaseModel):
     sasa: dict = Field(default_factory=lambda: {"residues": []})
 
 
+class GROMACSConfig(BaseModel):
+    binary: str = "gmx"  # path or name of the gmx binary (e.g. "gmx", "gmx_mpi", "/opt/gromacs/bin/gmx")
+
+
 class PhospConfig(BaseModel):
     input: InputConfig
     modification: ModificationConfig
     forcefield: Literal["charmm36m", "amber_ff14sb"] = "charmm36m"
     engine: Literal["gromacs"] = "gromacs"
+    gromacs: GROMACSConfig = Field(default_factory=GROMACSConfig)
     protocol: str = "globular_protein"
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
     analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)

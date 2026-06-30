@@ -20,6 +20,9 @@ def _run_gmx(cmd: list[str], cwd: Path, input_text: str = "") -> subprocess.Comp
 
 
 class GROMACSEngine(MDEngine):
+    def __init__(self, binary: str = "gmx") -> None:
+        self._binary = binary
+
     def prepare_topology(
         self,
         pdb: Path,
@@ -31,7 +34,7 @@ class GROMACSEngine(MDEngine):
             output_dir = pdb.parent
         output_dir.mkdir(parents=True, exist_ok=True)
         _run_gmx(
-            ["gmx", "pdb2gmx",
+            [self._binary, "pdb2gmx",
              "-f", str(pdb.resolve()),
              "-o", str(output_dir / "processed.gro"),
              "-p", str(output_dir / "topol.top"),
@@ -52,12 +55,12 @@ class GROMACSEngine(MDEngine):
         solvated_gro = out_dir / "solvated.gro"
         water_box = self._WATER_BOX.get(water_model.lower(), water_model)
         _run_gmx(
-            ["gmx", "editconf", "-f", str(gro), "-o", str(box_gro),
+            [self._binary, "editconf", "-f", str(gro), "-o", str(box_gro),
              "-c", "-d", "1.2", "-bt", box_type],
             cwd=out_dir,
         )
         _run_gmx(
-            ["gmx", "solvate", "-cp", str(box_gro), "-cs", f"{water_box}.gro",
+            [self._binary, "solvate", "-cp", str(box_gro), "-cs", f"{water_box}.gro",
              "-o", str(solvated_gro), "-p", str(topology)],
             cwd=out_dir,
         )
@@ -70,14 +73,14 @@ class GROMACSEngine(MDEngine):
         genion_mdp = out_dir / "genion.mdp"
         genion_mdp.write_text("integrator=steep\nnsteps=0\n")
         _run_gmx(
-            ["gmx", "grompp", "-f", str(genion_mdp), "-c", str(gro),
+            [self._binary, "grompp", "-f", str(genion_mdp), "-c", str(gro),
              "-p", str(topology), "-o", str(ions_tpr), "-maxwarn", "2"],
             cwd=out_dir,
         )
         conc = concentration_mM / 1000.0
         neutral_flag = ["-neutral"] if neutralize else []
         _run_gmx(
-            ["gmx", "genion", "-s", str(ions_tpr), "-o", str(ions_gro),
+            [self._binary, "genion", "-s", str(ions_tpr), "-o", str(ions_gro),
              "-p", str(topology), "-pname", "NA", "-nname", "CL",
              "-conc", str(conc)] + neutral_flag,
             cwd=out_dir,
@@ -103,7 +106,7 @@ class GROMACSEngine(MDEngine):
         log = output_dir / f"{phase}.log"
 
         grompp_cmd = [
-            "gmx", "grompp",
+            self._binary, "grompp",
             "-f", str(mdp),
             "-c", str(structure),
             "-p", str(topology),
@@ -115,7 +118,7 @@ class GROMACSEngine(MDEngine):
         _run_gmx(grompp_cmd, cwd=output_dir)
 
         mdrun_cmd = [
-            "gmx", "mdrun", "-v",
+            self._binary, "mdrun", "-v",
             "-deffnm", str(output_dir / phase),
             "-ntmpi", "1",
         ]
@@ -146,6 +149,7 @@ class GROMACSEngine(MDEngine):
             resources=resources,
             phases=phases,
             output_dir=str(work_dir or output_dir),
+            binary=self._binary,
         )
         script = output_dir / f"run_{scheduler}.sh"
         script.write_text(rendered)

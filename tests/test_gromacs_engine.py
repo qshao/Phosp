@@ -107,7 +107,40 @@ def test_generate_slurm_script(tmp_path):
     assert script.exists()
     content = script.read_text()
     assert "#SBATCH" in content
-    assert "gmx mdrun" in content
-    # MDP files live in stage2/, not stage3/
+    assert "gmx mdrun" in content          # default binary
     assert "../stage2/minimization.mdp" in content
     assert str(work_dir) in content
+
+
+def test_generate_slurm_script_custom_binary(tmp_path):
+    engine = GROMACSEngine(binary="gmx_mpi")
+    work_dir = tmp_path / "stage3"
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources={"ntasks": 8, "gpus": 1, "walltime": "24:00:00", "partition": "gpu"},
+        phases=["minimization", "nvt", "npt", "production"],
+        output_dir=tmp_path,
+        work_dir=work_dir,
+    )
+    content = script.read_text()
+    assert "gmx_mpi mdrun" in content
+    assert "gmx_mpi grompp" in content
+
+
+def test_engine_uses_configured_binary(tmp_path):
+    engine = GROMACSEngine(binary="/opt/gromacs/bin/gmx")
+    phase_dir = tmp_path / "min"
+    phase_dir.mkdir()
+    (phase_dir / "min.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="min",
+            mdp=tmp_path / "min.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+        )
+    for call in mock_gmx.call_args_list:
+        assert call.args[0][0] == "/opt/gromacs/bin/gmx"

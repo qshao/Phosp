@@ -108,6 +108,9 @@ modification:
 
 forcefield: charmm36m    # "charmm36m" or "amber_ff14sb"
 
+gromacs:
+  binary: gmx            # gmx binary — name or full path (e.g. "gmx_mpi", "/opt/gromacs/bin/gmx")
+
 protocol: globular_protein   # built-in preset name, or path to a custom YAML
 # Built-in presets: globular_protein | membrane_protein | phosphopeptide
 

@@ -26,6 +26,9 @@ modification:
 forcefield: charmm36m   # "charmm36m" or "amber_ff14sb"
 protocol: globular_protein  # "globular_protein", "membrane_protein", or "phosphopeptide"
 
+gromacs:
+  binary: gmx           # gmx binary name or full path (e.g. "gmx_mpi", "/opt/gromacs/bin/gmx")
+
 simulation:
   production_time_ns: 100.0   # production run length in ns
   output_freq_ps: 10.0        # trajectory output frequency in ps
@@ -139,8 +142,12 @@ def validate(
         raise typer.Exit(code=1)
 
     errors: list[str] = []
-    if shutil.which("gmx") is None:
-        errors.append("gmx not found in PATH — install GROMACS")
+    gmx = cfg.gromacs.binary
+    if shutil.which(gmx) is None and not Path(gmx).is_file():
+        errors.append(
+            f"GROMACS binary '{gmx}' not found — "
+            "install GROMACS or set gromacs.binary in the config"
+        )
     if shutil.which("pdb2pqr") is None:
         errors.append("pdb2pqr not found in PATH — run: pip install pdb2pqr")
     if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
@@ -160,7 +167,7 @@ def validate(
         raise typer.Exit(code=1)
 
     typer.echo("  ✓ Config valid")
-    typer.echo("  ✓ gmx found")
+    typer.echo(f"  ✓ {gmx} found")
     typer.echo("  ✓ pdb2pqr found")
     typer.echo("  ✓ Force field ready")
 

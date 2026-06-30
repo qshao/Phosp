@@ -47,10 +47,11 @@ class Pipeline:
             self._run_stage(stage_name)
 
     def _preflight_checks(self) -> None:
-        if shutil.which("gmx") is None:
+        binary = self.config.gromacs.binary
+        if shutil.which(binary) is None and not Path(binary).is_file():
             raise PhospError(
-                "GROMACS (gmx) not found in PATH. "
-                "Install GROMACS and ensure gmx is on your PATH."
+                f"GROMACS binary '{binary}' not found. "
+                "Set gromacs.binary in your config to the correct path or binary name."
             )
         self._check_forcefield()
         self._warn_disk_space()
@@ -63,7 +64,7 @@ class Pipeline:
         import subprocess
         try:
             out = subprocess.run(
-                ["gmx", "--version"], capture_output=True, text=True
+                [self.config.gromacs.binary, "--version"], capture_output=True, text=True
             ).stdout
             m = re.search(r"Data prefix:\s*(.+)", out)
             if not m:
@@ -137,7 +138,7 @@ class Pipeline:
             shutil.rmtree(tmp_dir)
         tmp_dir.mkdir(parents=True)
 
-        engine = GROMACSEngine()
+        engine = GROMACSEngine(binary=self.config.gromacs.binary)
         ff = CHARMM36mFF() if self.config.forcefield == "charmm36m" else AMBERff14SBFF()
         stage = self._build_stage(stage_name, engine, ff, tmp_dir)
 
