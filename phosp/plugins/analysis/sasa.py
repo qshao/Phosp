@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -7,8 +6,6 @@ import pandas as pd
 import MDAnalysis as mda
 from matplotlib.figure import Figure
 from phosp.plugins.analysis.base import AnalysisPlugin
-
-logger = logging.getLogger(__name__)
 
 
 class SASAPlugin(AnalysisPlugin):
