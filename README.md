@@ -65,7 +65,7 @@ phosp validate my_run/config.yaml
 phosp run my_run/config.yaml
 
 # 5. Check status / re-open the report
-phosp status my_run/config.yaml
+phosp status my_run/output
 open my_run/output/stage4/report.html
 ```
 
@@ -165,7 +165,7 @@ phosp run <config>               Run the full pipeline (or resume from checkpoin
 
 phosp validate <config>          Check config syntax and tool availability
 phosp predict-sites <config>     Predict phosphorylation sites (requires NetPhos)
-phosp status <config>            Show completed stages and checkpoint state
+phosp status <output-dir>        Show completed stages and checkpoint state
 phosp report <output-dir>        Regenerate the HTML report from existing results
 phosp init [path]                Write a template config file
 ```
