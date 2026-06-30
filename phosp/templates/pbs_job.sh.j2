@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N phosp
+#PBS -l nodes=1:ppn={{ resources.ntasks }}:gpus={{ resources.gpus }}
+#PBS -l walltime={{ resources.walltime }}
+#PBS -q {{ resources.partition }}
+#PBS -o pbs.out
+#PBS -e pbs.err
+
+module load gromacs
+
+set -euo pipefail
+WORK={{ output_dir }}
+cd "$WORK"
+
+{% for phase in phases %}
+echo "=== Running {{ phase }} ==="
+gmx grompp -f {{ phase }}.mdp \
+    -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
+    -p ../stage2/topol.top -o {{ phase }}/{{ phase }}.tpr -maxwarn 2
+gmx mdrun -v -deffnm {{ phase }}/{{ phase }} -ntmpi 1 -ntomp {{ resources.ntasks }} -gpu_id 0
+{% endfor %}

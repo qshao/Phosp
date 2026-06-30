@@ -75,8 +75,62 @@ class GROMACSEngine(MDEngine):
     def generate_mdp(self, phase: str, protocol, output_dir: Path) -> Path:
         return protocol.render_mdp(phase, output_dir)
 
-    def run_phase(self, phase, mdp, topology, structure, output_dir, restraint_gro=None):
-        raise NotImplementedError("Implemented in Task 14")
+    def run_phase(
+        self,
+        phase: str,
+        mdp: Path,
+        topology: Path,
+        structure: Path,
+        output_dir: Path,
+        restraint_gro: Path | None = None,
+    ) -> SimulationResult:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        tpr = output_dir / f"{phase}.tpr"
+        log = output_dir / f"{phase}.log"
 
-    def generate_hpc_script(self, scheduler, resources, phases, output_dir):
-        raise NotImplementedError("Implemented in Task 14")
+        grompp_cmd = [
+            "gmx", "grompp",
+            "-f", str(mdp),
+            "-c", str(structure),
+            "-p", str(topology),
+            "-o", str(tpr),
+            "-maxwarn", "2",
+        ]
+        if restraint_gro:
+            grompp_cmd += ["-r", str(restraint_gro)]
+        _run_gmx(grompp_cmd, cwd=output_dir)
+
+        mdrun_cmd = [
+            "gmx", "mdrun", "-v",
+            "-deffnm", str(output_dir / phase),
+            "-ntmpi", "1",
+        ]
+        _run_gmx(mdrun_cmd, cwd=output_dir)
+
+        return SimulationResult(
+            phase=phase,
+            output_dir=output_dir,
+            success=True,
+            log_path=log,
+        )
+
+    def generate_hpc_script(
+        self,
+        scheduler: str,
+        resources: dict,
+        phases: list[str],
+        output_dir: Path,
+    ) -> Path:
+        from jinja2 import Environment, FileSystemLoader
+        templates_dir = Path(__file__).parent.parent / "templates"
+        env = Environment(loader=FileSystemLoader(str(templates_dir)))
+        template = env.get_template(f"{scheduler}_job.sh.j2")
+        rendered = template.render(
+            resources=resources,
+            phases=phases,
+            output_dir=str(output_dir),
+        )
+        script = output_dir / f"run_{scheduler}.sh"
+        script.write_text(rendered)
+        script.chmod(0o755)
+        return script

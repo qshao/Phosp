@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --job-name=phosp
+#SBATCH --ntasks={{ resources.ntasks }}
+#SBATCH --gres=gpu:{{ resources.gpus }}
+#SBATCH --time={{ resources.walltime }}
+#SBATCH --partition={{ resources.partition }}
+#SBATCH --output=slurm_%j.out
+#SBATCH --error=slurm_%j.err
+
+module load gromacs/2023.3-cuda || module load gromacs
+
+set -euo pipefail
+WORK={{ output_dir }}
+cd "$WORK"
+
+{% for phase in phases %}
+echo "=== Running {{ phase }} ==="
+gmx grompp -f {{ phase }}.mdp -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
+    -p ../stage2/topol.top -o {{ phase }}/{{ phase }}.tpr \
+    {% if phase in ['nvt', 'npt'] %}-r ../stage2/ions.gro {% endif %}-maxwarn 2
+gmx mdrun -v -deffnm {{ phase }}/{{ phase }} -ntmpi 1 \
+    -ntomp {{ resources.ntasks }} -gpu_id 0
+{% endfor %}
