@@ -171,14 +171,19 @@ def test_resolve_stages_raises_on_unknown_start_from(tmp_path):
 
 
 def test_preflight_checks_pdb2pqr_binary(tmp_path):
-    """_preflight_checks uses cfg.gromacs.pdb2pqr, not a hardcoded string."""
+    """Stage1Modify.validate_inputs raises PhospError when pdb2pqr is not found."""
+    from phosp.stages.stage1_modify import Stage1Modify
     cfg = load_config(FIXTURES / "valid_config.yaml")
     cfg.gromacs.pdb2pqr = "/custom/pdb2pqr"
-    p = Pipeline(cfg, output_root=tmp_path / "output")
-    with patch("phosp.pipeline.shutil.which", side_effect=lambda b: "/usr/bin/gmx" if "gmx" in b else None), \
-         patch("phosp.pipeline.Path.is_file", return_value=False):
+    # Create a fake input PDB so the file-exists check passes
+    fake_pdb = tmp_path / "fake.pdb"
+    fake_pdb.write_text("ATOM  ...")
+    cfg.input.path = fake_pdb
+    stage = Stage1Modify(cfg, MagicMock(), MagicMock(), tmp_path / "stage1")
+    with patch("phosp.stages.stage1_modify.shutil.which", return_value=None), \
+         patch("phosp.stages.stage1_modify.Path.is_file", return_value=False):
         with pytest.raises(PhospError, match="pdb2pqr"):
-            p._preflight_checks()
+            stage.validate_inputs()
 
 
 def test_config_hash_guard_warns_on_mismatch(tmp_path, caplog):

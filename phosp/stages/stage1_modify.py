@@ -6,7 +6,7 @@ from pathlib import Path
 
 from Bio.PDB import PDBIO
 
-from phosp.exceptions import StageInputError
+from phosp.exceptions import PhospError, StageInputError
 from phosp.modification.base import get_modifier
 from phosp.stages.base import Stage, StageResult
 from phosp.utils.structure import clean_structure, fetch_structure, protonate_structure
@@ -19,6 +19,12 @@ class Stage1Modify(Stage):
         src = self.config.input
         if src.source == "pdb" and not src.path.exists():
             raise StageInputError(f"Input PDB not found: {src.path}")
+        pdb2pqr = self.config.gromacs.pdb2pqr
+        if shutil.which(pdb2pqr) is None and not Path(pdb2pqr).is_file():
+            raise PhospError(
+                f"pdb2pqr binary '{pdb2pqr}' not found. "
+                "Install it with 'pip install pdb2pqr' or set gromacs.pdb2pqr in your config."
+            )
 
     def run(self) -> StageResult:
         out = self.output_root
