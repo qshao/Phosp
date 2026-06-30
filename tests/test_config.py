@@ -1,6 +1,7 @@
 from pathlib import Path
 import pytest
-from phosp.config import PhospConfig, PhosphoSite, load_config
+from pydantic import ValidationError
+from phosp.config import PhospConfig, PhosphoSite, load_config, SimulationConfig, HPCConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -26,3 +27,48 @@ def test_default_simulation_values():
     assert cfg.simulation.production_time_ns == 100.0
     assert cfg.simulation.salt_concentration_mM == 150.0
     assert cfg.simulation.hpc.enabled is False
+
+
+def test_production_time_must_be_positive():
+    with pytest.raises(ValidationError, match="production_time_ns"):
+        SimulationConfig(production_time_ns=0.0)
+
+
+def test_production_time_negative_rejected():
+    with pytest.raises(ValidationError, match="production_time_ns"):
+        SimulationConfig(production_time_ns=-5.0)
+
+
+def test_output_freq_must_be_positive():
+    with pytest.raises(ValidationError, match="output_freq_ps"):
+        SimulationConfig(output_freq_ps=0.0)
+
+
+def test_output_freq_cannot_exceed_production():
+    with pytest.raises(ValidationError, match="output_freq_ps"):
+        SimulationConfig(production_time_ns=1.0, output_freq_ps=2000.0)
+
+
+def test_valid_output_freq_equal_to_production():
+    cfg = SimulationConfig(production_time_ns=100.0, output_freq_ps=100000.0)
+    assert cfg.output_freq_ps == 100000.0
+
+
+def test_salt_concentration_non_negative():
+    with pytest.raises(ValidationError, match="salt_concentration_mM"):
+        SimulationConfig(salt_concentration_mM=-1.0)
+
+
+def test_salt_concentration_zero_allowed():
+    cfg = SimulationConfig(salt_concentration_mM=0.0)
+    assert cfg.salt_concentration_mM == 0.0
+
+
+def test_hpc_ntasks_must_be_at_least_1():
+    with pytest.raises(ValidationError, match="ntasks"):
+        HPCConfig(ntasks=0)
+
+
+def test_hpc_gpus_non_negative():
+    with pytest.raises(ValidationError, match="gpus"):
+        HPCConfig(gpus=-1)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class InputConfig(BaseModel):
@@ -49,6 +49,20 @@ class HPCConfig(BaseModel):
     partition: str = "gpu"
     auto_submit: bool = False
 
+    @field_validator("ntasks")
+    @classmethod
+    def ntasks_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("ntasks must be >= 1")
+        return v
+
+    @field_validator("gpus")
+    @classmethod
+    def gpus_non_negative(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("gpus must be >= 0")
+        return v
+
 
 class SimulationConfig(BaseModel):
     production_time_ns: float = 100.0
@@ -57,6 +71,37 @@ class SimulationConfig(BaseModel):
     box_type: Literal["dodecahedron", "cubic"] = "dodecahedron"
     salt_concentration_mM: float = 150.0
     hpc: HPCConfig = Field(default_factory=HPCConfig)
+
+    @field_validator("production_time_ns")
+    @classmethod
+    def production_time_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("production_time_ns must be > 0")
+        return v
+
+    @field_validator("output_freq_ps")
+    @classmethod
+    def output_freq_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("output_freq_ps must be > 0")
+        return v
+
+    @field_validator("salt_concentration_mM")
+    @classmethod
+    def salt_non_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("salt_concentration_mM must be >= 0")
+        return v
+
+    @model_validator(mode="after")
+    def output_freq_fits_in_production(self) -> SimulationConfig:
+        if self.output_freq_ps > self.production_time_ns * 1000:
+            raise ValueError(
+                f"output_freq_ps ({self.output_freq_ps} ps) exceeds "
+                f"production_time_ns ({self.production_time_ns} ns = "
+                f"{self.production_time_ns * 1000} ps) — no frames would be written"
+            )
+        return self
 
 
 class AnalysisConfig(BaseModel):
