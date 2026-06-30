@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 import shutil
 import subprocess
 from pathlib import Path
@@ -11,8 +10,6 @@ import pandas as pd
 import MDAnalysis as mda
 from matplotlib.figure import Figure
 from phosp.plugins.analysis.base import AnalysisPlugin
-
-logger = logging.getLogger(__name__)
 
 
 class MMPBSAPlugin(AnalysisPlugin):

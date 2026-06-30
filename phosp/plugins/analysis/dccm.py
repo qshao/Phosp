@@ -19,14 +19,14 @@ class DCCMPlugin(AnalysisPlugin):
         positions = np.array([
             universe.select_atoms(selection).positions.copy()
             for ts in universe.trajectory
-        ])  # (n_frames, n_atoms, 3)
+        ])
 
         mean_pos = positions.mean(axis=0)
-        delta = positions - mean_pos               # (n_frames, n_atoms, 3)
+        delta = positions - mean_pos
         n_frames = delta.shape[0]
         delta_flat = delta.reshape(n_frames, n_atoms * 3)
 
-        cov = np.cov(delta_flat.T)                 # (3N, 3N)
+        cov = np.cov(delta_flat.T)
         dccm = np.zeros((n_atoms, n_atoms))
         for i in range(n_atoms):
             for j in range(n_atoms):
