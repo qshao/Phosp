@@ -62,3 +62,32 @@ def test_stage1_validate_inputs_bad_resid(tmp_path):
     stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path)
     with pytest.raises(StageInputError, match="resid 9999"):
         stage.validate_inputs()
+
+
+def test_stage1_reference_mode_skips_modification(tmp_path):
+    """In reference mode, no phospho modification is applied, manifest is empty."""
+    stage = Stage1Modify(
+        load_config(FIXTURES / "valid_config.yaml"),
+        engine=None,
+        forcefield=None,
+        output_root=tmp_path / "stage1",
+        reference_mode=True,
+    )
+    # Point input to fixture
+    stage.config.input.path = FIXTURES / "ubiquitin.pdb"
+    with patch("phosp.stages.stage1_modify.protonate_structure",
+               side_effect=lambda p, o, ph, pdb2pqr_binary="pdb2pqr": (o.parent / "input.pdb").rename(o) or o):
+        result = stage.run()
+    manifest = json.loads((tmp_path / "stage1" / "modification_manifest.json").read_text())
+    assert manifest == [], "reference mode must produce empty manifest"
+    assert (tmp_path / "stage1" / "modified.pdb").exists()
+
+
+def test_stage1_reference_mode_skips_site_validation(tmp_path):
+    """In reference mode, site validation is skipped even for bad sites."""
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.input.path = FIXTURES / "ubiquitin.pdb"
+    cfg.modification.sites[0].chain = "Z"  # bad chain — would normally raise
+    stage = Stage1Modify(cfg, engine=None, forcefield=None, output_root=tmp_path, reference_mode=True)
+    # Should NOT raise StageInputError
+    stage.validate_inputs()

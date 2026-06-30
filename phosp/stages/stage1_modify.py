@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class Stage1Modify(Stage):
+    def __init__(self, config, engine, forcefield, output_root: Path, ui=None, reference_mode: bool = False) -> None:
+        super().__init__(config, engine, forcefield, output_root, ui)
+        self.reference_mode = reference_mode
+
     def validate_inputs(self) -> None:
         src = self.config.input
         if src.source == "pdb" and not src.path.exists():
@@ -25,7 +29,7 @@ class Stage1Modify(Stage):
                 f"pdb2pqr binary '{pdb2pqr}' not found. "
                 "Install it with 'pip install pdb2pqr' or set gromacs.pdb2pqr in your config."
             )
-        if src.source == "pdb" and src.path.exists():
+        if not self.reference_mode and src.source == "pdb" and src.path.exists():
             from Bio.PDB import PDBParser
             parser = PDBParser(QUIET=True)
             structure = parser.get_structure("_", str(src.path))
@@ -67,29 +71,35 @@ class Stage1Modify(Stage):
             pdb2pqr_binary=cfg.gromacs.pdb2pqr,
         )
 
-        # 4. Apply phospho patches
-        from Bio.PDB import PDBParser
-        parser = PDBParser(QUIET=True)
-        structure = parser.get_structure("protein", str(protonated))
+        if self.reference_mode:
+            # Reference run: use protonated structure as-is (no phospho patches)
+            modified_pdb = out / "modified.pdb"
+            shutil.copy2(protonated, modified_pdb)
+            manifest = []
+        else:
+            # 4. Apply phospho patches
+            from Bio.PDB import PDBParser
+            parser = PDBParser(QUIET=True)
+            structure = parser.get_structure("protein", str(protonated))
 
-        manifest = []
-        for site in cfg.modification.sites:
-            modifier = get_modifier(site.phospho_type, cfg.forcefield)
-            structure = modifier.apply(structure, chain_id=site.chain, resid=site.resid)
-            manifest.append({
-                "chain": site.chain,
-                "resid": site.resid,
-                "original_resname": site.resname,
-                "phospho_type": site.phospho_type,
-                "new_resname": modifier.new_resname,
-            })
-            logger.info("Applied %s to %s%d", site.phospho_type, site.chain, site.resid)
+            manifest = []
+            for site in cfg.modification.sites:
+                modifier = get_modifier(site.phospho_type, cfg.forcefield)
+                structure = modifier.apply(structure, chain_id=site.chain, resid=site.resid)
+                manifest.append({
+                    "chain": site.chain,
+                    "resid": site.resid,
+                    "original_resname": site.resname,
+                    "phospho_type": site.phospho_type,
+                    "new_resname": modifier.new_resname,
+                })
+                logger.info("Applied %s to %s%d", site.phospho_type, site.chain, site.resid)
 
-        # 5. Write outputs
-        modified_pdb = out / "modified.pdb"
-        io = PDBIO()
-        io.set_structure(structure)
-        io.save(str(modified_pdb))
+            # 5. Write modified structure
+            modified_pdb = out / "modified.pdb"
+            io = PDBIO()
+            io.set_structure(structure)
+            io.save(str(modified_pdb))
 
         manifest_path = out / "modification_manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2))
