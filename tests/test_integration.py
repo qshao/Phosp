@@ -5,7 +5,6 @@ from unittest.mock import patch, MagicMock
 import pytest
 from phosp.config import load_config
 from phosp.pipeline import Pipeline
-from phosp.engines.base import SimulationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -71,7 +70,8 @@ def test_pipeline_resumes_from_stage2(tmp_path):
     stage1_dir = tmp_path / "output" / "stage1"
     stage1_dir.mkdir(parents=True)
     shutil.copy(FIXTURES / "ubiquitin.pdb", stage1_dir / "modified.pdb")
-    json.dump([], (stage1_dir / "modification_manifest.json").open("w"))
+    with (stage1_dir / "modification_manifest.json").open("w") as f:
+        json.dump([], f)
 
     engine = _mock_engine(tmp_path)
     with patch("phosp.pipeline.GROMACSEngine", return_value=engine), \
