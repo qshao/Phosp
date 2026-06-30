@@ -42,17 +42,22 @@ class GROMACSEngine(MDEngine):
         )
         return output_dir / "topol.top"
 
+    # TIP3P uses spc216.gro since GROMACS dropped tip3p.gro in 2024+
+    _WATER_BOX = {"tip3p": "spc216", "spc": "spc216", "spce": "spc216",
+                  "tip4p": "tip4p", "tip5p": "tip5p"}
+
     def solvate(self, gro: Path, topology: Path, box_type: str, water_model: str) -> tuple[Path, Path]:
         out_dir = gro.parent
         box_gro = out_dir / "newbox.gro"
         solvated_gro = out_dir / "solvated.gro"
+        water_box = self._WATER_BOX.get(water_model.lower(), water_model)
         _run_gmx(
             ["gmx", "editconf", "-f", str(gro), "-o", str(box_gro),
              "-c", "-d", "1.2", "-bt", box_type],
             cwd=out_dir,
         )
         _run_gmx(
-            ["gmx", "solvate", "-cp", str(box_gro), "-cs", f"{water_model}.gro",
+            ["gmx", "solvate", "-cp", str(box_gro), "-cs", f"{water_box}.gro",
              "-o", str(solvated_gro), "-p", str(topology)],
             cwd=out_dir,
         )

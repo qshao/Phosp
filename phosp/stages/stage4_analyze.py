@@ -32,7 +32,7 @@ def _discover_plugins() -> dict[str, type[AnalysisPlugin]]:
 class Stage4Analyze(Stage):
     def validate_inputs(self) -> None:
         prod_dir = self.output_root.parent / "stage3" / "production"
-        for f in ["production.xtc", "production.tpr"]:
+        for f in ["production.xtc", "production.gro"]:
             if not (prod_dir / f).exists():
                 raise StageInputError(
                     f"{f} not found in {prod_dir}. Run stage3 first."
@@ -44,8 +44,9 @@ class Stage4Analyze(Stage):
         cfg = self.config
         prod_dir = out.parent / "stage3" / "production"
 
+        # Use GRO as topology — avoids TPR version incompatibilities with MDAnalysis
         universe = mda.Universe(
-            str(prod_dir / "production.tpr"),
+            str(prod_dir / "production.gro"),
             str(prod_dir / "production.xtc"),
         )
 

@@ -13,11 +13,11 @@ _FF_NAMES: dict[str, dict[str, str]] = {
     "amber_ff14sb": {"pSer": "SEP", "pThr": "TPO", "pTyr": "PTR"},
 }
 
-# Phosphate atom names added to residue (CHARMM/AMBER convention)
+# Phosphate atom names matching CHARMM36/AMBER RTP entries (P, O1P, O2P, O3P)
 _PHOSPHO_ATOMS = {
-    "pSer": {"bridging_O": "OG",  "P": "PG",  "O1": "O1G", "O2": "O2G", "O3": "O3G"},
-    "pThr": {"bridging_O": "OG1", "P": "PG",  "O1": "O1G", "O2": "O2G", "O3": "O3G"},
-    "pTyr": {"bridging_O": "OH",  "P": "PH",  "O1": "O1H", "O2": "O2H", "O3": "O3H"},
+    "pSer": {"bridging_O": "OG",  "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
+    "pThr": {"bridging_O": "OG1", "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
+    "pTyr": {"bridging_O": "OH",  "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
 }
 
 

@@ -20,21 +20,6 @@ class CHARMM36mFF(ForceField):
         return _PARAMS_DIR / _PHOSPHO_FILES[phospho_type]
 
     def patch_topology(self, topology: Path, sites: list) -> Path:
-        content = topology.read_text()
-        includes = []
-        for site in sites:
-            itp = self.get_phospho_params(site.phospho_type)
-            include_line = f'#include "{itp}"\n'
-            if include_line not in content:
-                includes.append(include_line)
-        if includes:
-            insert_after = "; Include Position restraint file"
-            if insert_after in content:
-                content = content.replace(
-                    insert_after, "".join(includes) + insert_after, 1
-                )
-            else:
-                content = "".join(includes) + content
-            topology.write_text(content)
-            logger.info("Patched topology with %d phospho includes", len(includes))
+        # CHARMM36m's forcefield.itp already contains SEP/TPO/PTR parameters;
+        # pdb2gmx generates a complete topology without any extra ITP needed.
         return topology
