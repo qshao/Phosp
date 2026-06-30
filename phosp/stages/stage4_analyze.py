@@ -4,6 +4,7 @@ import logging
 import pkgutil
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import MDAnalysis as mda
 
 import phosp.plugins.analysis as _analysis_pkg
@@ -67,7 +68,6 @@ class Stage4Analyze(Stage):
                 fig = plugin.plot(result_df)
                 png_path = out / f"{plugin_name}.png"
                 fig.savefig(png_path, dpi=150, bbox_inches="tight")
-                import matplotlib.pyplot as plt
                 plt.close(fig)
 
                 artifacts[plugin_name] = csv_path
