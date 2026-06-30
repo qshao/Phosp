@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import logging
 import subprocess
 from pathlib import Path
@@ -34,10 +35,23 @@ class SlurmRunner(SimulationRunner):
             work_dir=work_dir,
         )
 
+        job_id: str | None = None
         if hpc.auto_submit:
-            subprocess.run(["sbatch", str(script)], check=True)
-            logger.info("Submitted SLURM job: %s", script)
+            result = subprocess.run(
+                ["sbatch", str(script)], capture_output=True, text=True, check=True
+            )
+            # sbatch prints: "Submitted batch job 12345"
+            job_id = result.stdout.strip().split()[-1] if result.stdout.strip() else None
+            logger.info("Submitted SLURM job %s: %s", job_id, script)
         else:
             logger.info("SLURM script written (not submitted): %s", script)
+
+        sentinel = output_dir / "pending_job.json"
+        sentinel.write_text(json.dumps({
+            "scheduler": "slurm",
+            "script": str(script),
+            "job_id": job_id,
+            "auto_submitted": hpc.auto_submit,
+        }))
 
         return {"hpc_script": script}

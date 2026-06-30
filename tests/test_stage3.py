@@ -50,6 +50,12 @@ def test_stage3_slurm_mode_writes_script_not_runs(tmp_path):
     result = stage.run()
     stage.engine.generate_hpc_script.assert_called_once()
     stage.engine.run_phase.assert_not_called()
+    sentinel = stage.output_root / "pending_job.json"
+    assert sentinel.exists(), "pending_job.json must be written by SLURM runner"
+    import json
+    info = json.loads(sentinel.read_text())
+    assert info["scheduler"] == "slurm"
+    assert info["auto_submitted"] is False
 
 
 def test_stage3_pbs_mode_writes_script_not_runs(tmp_path):
@@ -59,3 +65,8 @@ def test_stage3_pbs_mode_writes_script_not_runs(tmp_path):
     result = stage.run()
     stage.engine.generate_hpc_script.assert_called_once()
     stage.engine.run_phase.assert_not_called()
+    sentinel = stage.output_root / "pending_job.json"
+    assert sentinel.exists(), "pending_job.json must be written by PBS runner"
+    import json
+    info = json.loads(sentinel.read_text())
+    assert info["scheduler"] == "pbs"

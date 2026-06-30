@@ -32,8 +32,21 @@ def _discover_plugins() -> dict[str, type[AnalysisPlugin]]:
 class Stage4Analyze(Stage):
     def validate_inputs(self) -> None:
         prod_dir = self.output_root.parent / "stage3" / "production"
+        pending_sentinel = self.output_root.parent / "stage3" / "pending_job.json"
         for f in ["production.xtc", "production.gro"]:
             if not (prod_dir / f).exists():
+                if pending_sentinel.exists():
+                    import json as _json
+                    info = _json.loads(pending_sentinel.read_text())
+                    sched = info.get("scheduler", "hpc").upper()
+                    job_id = info.get("job_id")
+                    check_cmd = "squeue" if sched == "SLURM" else "qstat"
+                    id_part = f" (job {job_id})" if job_id else ""
+                    raise StageInputError(
+                        f"{sched} job{id_part} is still running — {f} not yet available.\n"
+                        f"  Check status:  {check_cmd}\n"
+                        "  Re-run 'phosp run <config>' after the job completes."
+                    )
                 raise StageInputError(
                     f"{f} not found in {prod_dir}. Run stage3 first."
                 )

@@ -108,6 +108,35 @@ def test_orphan_tmp_dirs_removed_at_startup(tmp_path):
     assert not orphan.exists()
 
 
+def test_amber_ff14sb_blocked_at_preflight(tmp_path):
+    """amber_ff14sb raises PhospError at preflight, before any stage runs."""
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.forcefield = "amber_ff14sb"
+    p = Pipeline(cfg, output_root=tmp_path / "output")
+    with _patched_gmx():
+        with pytest.raises(PhospError, match="AMBER ff14SB"):
+            p.execute(only_stages="1")
+
+
+def test_stage_failure_preserves_previous_final_dir(tmp_path):
+    """When stage.run() raises, a previously completed final_dir is not deleted."""
+    p = _make_pipeline(tmp_path)
+    final_dir = tmp_path / "output" / "stage1"
+    final_dir.mkdir(parents=True)
+    keeper = final_dir / "precious.txt"
+    keeper.write_text("previous good result")
+
+    mock_stage = MagicMock()
+    mock_stage.run.side_effect = RuntimeError("mid-run failure")
+
+    with _patched_gmx(), patch.object(p, "_build_stage", return_value=mock_stage):
+        with pytest.raises(RuntimeError, match="mid-run failure"):
+            p.execute(only_stages="1")
+
+    assert final_dir.exists(), "previous final_dir must survive a failed re-run"
+    assert keeper.read_text() == "previous good result"
+
+
 def test_disk_warning_logged_when_low(tmp_path, caplog):
     import logging
     cfg = load_config(FIXTURES / "valid_config.yaml")

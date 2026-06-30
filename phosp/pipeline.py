@@ -58,6 +58,12 @@ class Pipeline:
 
     def _check_forcefield(self) -> None:
         ff = self.config.forcefield
+        if ff == "amber_ff14sb":
+            raise PhospError(
+                "AMBER ff14SB is not yet fully supported with GROMACS.\n"
+                "Use forcefield: charmm36m instead.\n"
+                "(AMBER ff14SB support is planned for a future release.)"
+            )
         if ff != "charmm36m":
             return
         import re
@@ -146,12 +152,14 @@ class Pipeline:
             self.ui.stage_start(stage_name)
 
         start = time.monotonic()
+        renamed = False
         try:
             stage.validate_inputs()
             result = stage.run()
             if final_dir.exists():
                 shutil.rmtree(final_dir)
             tmp_dir.rename(final_dir)
+            renamed = True
             remapped = self._remap_artifacts(result.artifacts, tmp_dir, final_dir)
             self.checkpoint.mark_complete(stage_name, remapped)
             elapsed = time.monotonic() - start
@@ -161,9 +169,12 @@ class Pipeline:
         except Exception as exc:
             if self.ui:
                 self.ui.stage_error(stage_name, exc)
-            for d in (tmp_dir, final_dir):
-                if d.exists():
-                    shutil.rmtree(d)
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir)
+            # Only delete final_dir if we put it there in this run; otherwise a
+            # prior successful run's output is still valid and should be kept.
+            if renamed and final_dir.exists():
+                shutil.rmtree(final_dir)
             raise
 
     @staticmethod
