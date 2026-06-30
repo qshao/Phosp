@@ -4,6 +4,8 @@ import logging
 import pkgutil
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import MDAnalysis as mda
 
@@ -30,7 +32,7 @@ def _discover_plugins() -> dict[str, type[AnalysisPlugin]]:
 class Stage4Analyze(Stage):
     def validate_inputs(self) -> None:
         prod_dir = self.output_root.parent / "stage3" / "production"
-        for f in ["prod.xtc", "prod.tpr"]:
+        for f in ["production.xtc", "production.tpr"]:
             if not (prod_dir / f).exists():
                 raise StageInputError(
                     f"{f} not found in {prod_dir}. Run stage3 first."
@@ -43,8 +45,8 @@ class Stage4Analyze(Stage):
         prod_dir = out.parent / "stage3" / "production"
 
         universe = mda.Universe(
-            str(prod_dir / "prod.tpr"),
-            str(prod_dir / "prod.xtc"),
+            str(prod_dir / "production.tpr"),
+            str(prod_dir / "production.xtc"),
         )
 
         registry = _discover_plugins()

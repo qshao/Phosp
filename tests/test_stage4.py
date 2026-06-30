@@ -34,8 +34,8 @@ def test_stage4_run_executes_requested_plugins(tmp_path):
 
     stage3_dir = tmp_path / "output" / "stage3" / "production"
     stage3_dir.mkdir(parents=True)
-    (stage3_dir / "prod.xtc").write_bytes(b"")
-    (stage3_dir / "prod.tpr").write_bytes(b"")
+    (stage3_dir / "production.xtc").write_bytes(b"")
+    (stage3_dir / "production.tpr").write_bytes(b"")
 
     stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "output" / "stage4")
 
@@ -52,5 +52,5 @@ def test_stage4_validate_raises_if_trajectory_missing(tmp_path):
     cfg = load_config(FIXTURES / "valid_config.yaml")
     cfg.input.path = FIXTURES / "ubiquitin.pdb"
     stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "stage4")
-    with pytest.raises(StageInputError, match="prod.xtc"):
+    with pytest.raises(StageInputError, match="production.xtc"):
         stage.validate_inputs()

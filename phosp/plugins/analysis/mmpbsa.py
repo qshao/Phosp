@@ -46,7 +46,7 @@ class MMPBSAPlugin(AnalysisPlugin):
             "-i", str(input_file),
             "-cs", str(top),
             "-ct", str(traj),
-            "-cp", str(Path(traj).parent / "topol.top"),
+            "-cp", str(Path(traj).parent.parent.parent / "stage2" / "topol.top"),
             "-o", str(work_dir / "mmpbsa_results.dat"),
             "-eo", str(work_dir / "mmpbsa_energies.csv"),
         ]

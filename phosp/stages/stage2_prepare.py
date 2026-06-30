@@ -29,7 +29,12 @@ class Stage2Prepare(Stage):
         sites = cfg.modification.sites
 
         # 1. Build topology
-        topology = self.engine.prepare_topology(modified_pdb, self.forcefield)
+        topology = self.engine.prepare_topology(
+            modified_pdb,
+            self.forcefield,
+            output_dir=out,
+            water_model=sim.water_model,
+        )
         topology = self.forcefield.patch_topology(topology, sites)
 
         # 2. Solvate

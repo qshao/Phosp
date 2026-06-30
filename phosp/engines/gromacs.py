@@ -20,19 +20,27 @@ def _run_gmx(cmd: list[str], cwd: Path, input_text: str = "") -> subprocess.Comp
 
 
 class GROMACSEngine(MDEngine):
-    def prepare_topology(self, pdb: Path, forcefield) -> Path:
-        out_dir = pdb.parent
+    def prepare_topology(
+        self,
+        pdb: Path,
+        forcefield,
+        output_dir: Path | None = None,
+        water_model: str = "tip3p",
+    ) -> Path:
+        if output_dir is None:
+            output_dir = pdb.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
         _run_gmx(
             ["gmx", "pdb2gmx",
-             "-f", str(pdb),
-             "-o", str(out_dir / "processed.gro"),
-             "-p", str(out_dir / "topol.top"),
+             "-f", str(pdb.resolve()),
+             "-o", str(output_dir / "processed.gro"),
+             "-p", str(output_dir / "topol.top"),
              "-ff", forcefield.pdb2gmx_flag(),
-             "-water", "tip3p",
+             "-water", water_model,
              "-ignh"],
-            cwd=out_dir,
+            cwd=output_dir,
         )
-        return out_dir / "topol.top"
+        return output_dir / "topol.top"
 
     def solvate(self, gro: Path, topology: Path, box_type: str, water_model: str) -> tuple[Path, Path]:
         out_dir = gro.parent

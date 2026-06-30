@@ -29,9 +29,10 @@ class Protocol:
         params = dict(self._data.get(phase, {}))
 
         if phase == "production":
-            steps = int(self._sim.production_time_ns * 1e6 / params.get("dt", 0.002))
+            dt = params.get("dt", 0.002)
+            steps = int(self._sim.production_time_ns * 1000 / dt)
             params["nsteps"] = steps
-            nstxout = max(1, int(self._sim.output_freq_ps * 1000 / params.get("dt", 0.002)))
+            nstxout = max(1, int(self._sim.output_freq_ps / dt))
             params["nstxout_compressed"] = nstxout
 
         mdp_path = output_dir / f"{phase}.mdp"
