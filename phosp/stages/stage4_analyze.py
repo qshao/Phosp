@@ -40,6 +40,7 @@ class Stage4Analyze(Stage):
 
     def run(self) -> StageResult:
         out = self.output_root
+        out.mkdir(parents=True, exist_ok=True)
         cfg = self.config
         prod_dir = out.parent / "stage3" / "production"
 
@@ -51,6 +52,7 @@ class Stage4Analyze(Stage):
         registry = _discover_plugins()
         requested = cfg.analysis.plugins
         artifacts: dict[str, Path] = {}
+        failures: list[tuple[str, str]] = []
 
         for plugin_name in requested:
             if plugin_name not in registry:
@@ -59,6 +61,9 @@ class Stage4Analyze(Stage):
             plugin_config = getattr(cfg.analysis, plugin_name, {})
             if not isinstance(plugin_config, dict):
                 plugin_config = plugin_config.model_dump() if hasattr(plugin_config, "model_dump") else {}
+
+            if self.ui:
+                self.ui.plugin_start(plugin_name)
 
             try:
                 plugin = registry[plugin_name]()
@@ -74,16 +79,28 @@ class Stage4Analyze(Stage):
                 artifacts[plugin_name] = csv_path
                 logger.info("Plugin '%s' complete", plugin_name)
             except Exception as e:
-                raise AnalysisError(f"Plugin '{plugin_name}' failed: {e}") from e
+                error_msg = f"{type(e).__name__}: {e}"
+                logger.warning("Plugin '%s' failed: %s", plugin_name, error_msg)
+                failures.append((plugin_name, error_msg))
 
+        if failures and not artifacts:
+            raise AnalysisError(
+                "All analysis plugins failed:\n"
+                + "\n".join(f"  {n}: {e}" for n, e in failures)
+            )
+
+        _render_report(out, failed_plugins=failures)
         return StageResult(stage="stage4", output_dir=out, artifacts=artifacts)
 
     @staticmethod
     def regenerate_report(output_dir: Path) -> None:
-        _render_report(output_dir)
+        _render_report(output_dir, failed_plugins=[])
 
 
-def _render_report(output_dir: Path) -> Path:
+def _render_report(
+    output_dir: Path,
+    failed_plugins: list[tuple[str, str]] | None = None,
+) -> Path:
     from jinja2 import Environment, FileSystemLoader
     import base64
     templates_dir = Path(__file__).parent.parent / "templates"
@@ -96,7 +113,11 @@ def _render_report(output_dir: Path) -> Path:
         b64 = base64.b64encode(png.read_bytes()).decode()
         figures.append({"name": png.stem, "data": b64})
 
-    html = template.render(figures=figures, output_dir=str(output_dir))
+    html = template.render(
+        figures=figures,
+        output_dir=str(output_dir),
+        failed_plugins=failed_plugins or [],
+    )
     report_path = output_dir / "report.html"
     report_path.write_text(html)
     return report_path

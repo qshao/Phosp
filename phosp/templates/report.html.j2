@@ -9,11 +9,24 @@
     .figure-section { margin-bottom: 3rem; }
     .figure-section h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.3rem; }
     img { max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+    .failed-plugins { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 1rem 1.5rem; margin-bottom: 2rem; }
+    .failed-plugins h2 { color: #856404; margin-top: 0; }
+    .plugin-error { margin: 0.4rem 0; font-family: monospace; font-size: 0.9em; }
   </style>
 </head>
 <body>
   <h1>Phosp MD Analysis Report</h1>
   <p>Output directory: <code>{{ output_dir }}</code></p>
+
+  {% if failed_plugins %}
+  <div class="failed-plugins">
+    <h2>&#9888; Failed Plugins</h2>
+    {% for name, error in failed_plugins %}
+    <div class="plugin-error"><strong>{{ name }}</strong>: {{ error }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% for fig in figures %}
   <div class="figure-section">
     <h2>{{ fig.name | replace("_", " ") | title }}</h2>
