@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests (excluding Stage 3 live simulation)
+        run: |
+          pytest tests/ -v \
+            --ignore=tests/test_integration.py \
+            -k "not test_pipeline_stages_1_and_2" \
+            --cov=phosp --cov-report=xml
+
+      - name: Run integration tests (mocked)
+        run: pytest tests/test_integration.py -v

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from phosp.config import PhospConfig
+from phosp.engines.gromacs import GROMACSEngine
 from phosp.exceptions import PhospError
 from phosp.utils.checkpoint import Checkpoint
 
@@ -46,7 +47,6 @@ class Pipeline:
         return stages
 
     def _run_stage(self, stage_name: str) -> None:
-        from phosp.engines.gromacs import GROMACSEngine
         from phosp.forcefields.charmm36m import CHARMM36mFF
         from phosp.forcefields.amber_ff14sb import AMBERff14SBFF
 
