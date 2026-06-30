@@ -65,6 +65,12 @@ class Stage4Analyze(Stage):
 
         registry = _discover_plugins()
         requested = cfg.analysis.plugins
+        unknown = [p for p in requested if p not in registry]
+        if unknown:
+            raise AnalysisError(
+                f"Unknown analysis plugins: {unknown}. "
+                f"Valid plugins: {sorted(registry)}"
+            )
         artifacts: dict[str, Path] = {}
         failures: list[tuple[str, str]] = []
 

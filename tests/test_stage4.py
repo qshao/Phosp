@@ -153,3 +153,22 @@ def test_report_generated_after_run(tmp_path):
         stage.run()
 
     assert (tmp_path / "output" / "stage4" / "report.html").exists()
+
+
+def test_unknown_plugin_name_raises_analysis_error(tmp_path):
+    """A typo in analysis.plugins raises AnalysisError immediately with valid names listed."""
+    from phosp.exceptions import AnalysisError
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.analysis.plugins = ["rmsdf"]   # typo: should be "rmsf"
+
+    stage3_dir = tmp_path / "output" / "stage3" / "production"
+    stage3_dir.mkdir(parents=True)
+    (stage3_dir / "production.xtc").write_bytes(b"")
+    (stage3_dir / "production.gro").write_bytes(b"")
+
+    stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "output" / "stage4")
+    with patch("phosp.stages.stage4_analyze._discover_plugins",
+               return_value={"rmsd": MagicMock, "rmsf": MagicMock}), \
+         patch("phosp.stages.stage4_analyze.mda.Universe", return_value=MagicMock()):
+        with pytest.raises(AnalysisError, match="Unknown analysis plugins.*rmsdf"):
+            stage.run()
