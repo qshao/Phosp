@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from phosp.config import PhospConfig
+from phosp.exceptions import PhospError
 from phosp.utils.checkpoint import Checkpoint
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class Pipeline:
                 idx = stages.index(start_from)
                 stages = stages[idx:]
             except ValueError:
-                raise ValueError(f"Unknown stage: {start_from}")
+                raise PhospError(f"Unknown stage: {start_from}")
         return stages
 
     def _run_stage(self, stage_name: str) -> None:
@@ -74,4 +75,4 @@ class Pipeline:
                 from phosp.stages.stage4_analyze import Stage4Analyze
                 return Stage4Analyze(self.config, engine, ff, output_dir)
             case _:
-                raise ValueError(f"Unknown stage: {stage_name}")
+                raise PhospError(f"Unknown stage: {stage_name}")
