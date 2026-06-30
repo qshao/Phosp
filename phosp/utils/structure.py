@@ -87,7 +87,7 @@ def protonate_structure(pdb: Path, output: Path, ph: float = 7.4) -> Path:
     cmd = [
         "pdb2pqr",
         "--ff=CHARMM",
-        "--ph-calc-method=propka",
+        "--titration-state-method=propka",
         f"--with-ph={ph}",
         "--pdb-output", str(output),
         str(pdb),
