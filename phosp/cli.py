@@ -98,7 +98,11 @@ def run(
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1)
-    cfg = load_config(config_path)
+    try:
+        cfg = load_config(config_path)
+    except (ValueError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
 
     if dry_run:
         if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
@@ -128,7 +132,11 @@ def validate(
     from phosp.logging import configure_logging
     from phosp.pipeline import Pipeline
     configure_logging()
-    cfg = load_config(config_path)
+    try:
+        cfg = load_config(config_path)
+    except (ValueError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
 
     errors: list[str] = []
     if shutil.which("gmx") is None:
@@ -166,11 +174,20 @@ def predict_sites(
     from phosp.logging import configure_logging
     from phosp.prediction.netphos import NetPhos
     configure_logging()
-    cfg = load_config(config_path)
+    try:
+        cfg = load_config(config_path)
+    except (ValueError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
     if cfg.input.path is None:
         typer.echo("Error: predict-sites requires input.source=pdb with a path set", err=True)
         raise typer.Exit(code=1)
-    results = NetPhos().predict(cfg.input.path, threshold=threshold)
+    try:
+        results = NetPhos().predict(cfg.input.path, threshold=threshold)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        typer.echo("NetPhos is not bundled with phosp. Download it from https://services.healthtech.dtu.dk/software.php and ensure 'netphos' is on your PATH.")
+        raise typer.Exit(code=1)
     for r in results:
         typer.echo(f"  chain={r['chain']} resid={r['resid']} resname={r['resname']} "
                    f"type={r['phospho_type']} score={r['score']:.3f}")
@@ -184,8 +201,13 @@ def report(
     from phosp.logging import configure_logging
     from phosp.stages.stage4_analyze import Stage4Analyze
     configure_logging()
-    Stage4Analyze.regenerate_report(output_dir)
-    typer.echo(f"Report written to {output_dir}/stage4/report.html")
+    stage4_dir = output_dir / "stage4"
+    if not stage4_dir.exists():
+        typer.echo(f"Error: stage4 output not found at {stage4_dir}", err=True)
+        typer.echo("Run 'phosp run <config>' to completion first, then re-run this command.")
+        raise typer.Exit(code=1)
+    Stage4Analyze.regenerate_report(stage4_dir)
+    typer.echo(f"Report written to {stage4_dir / 'report.html'}")
 
 
 @app.command(help="Write a starter config file to get started quickly.")
