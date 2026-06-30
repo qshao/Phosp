@@ -95,7 +95,10 @@ def test_run_phase_omits_gpu_flag_when_gpu_id_is_none(tmp_path):
 
 
 def _slurm_resources(**overrides):
-    base = {"ntasks": 8, "gpus": 1, "walltime": "24:00:00", "partition": "gpu", "gromacs_module": None}
+    base = {
+        "ntasks": 8, "gpus": 1, "walltime": "24:00:00",
+        "partition": "gpu", "gromacs_module": None, "extra_directives": [],
+    }
     return {**base, **overrides}
 
 
@@ -210,6 +213,41 @@ def test_slurm_script_non_mpi_uses_ntmpi(tmp_path):
     content = script.read_text()
     assert "-ntmpi 1" in content
     assert "srun" not in content
+
+
+def test_slurm_script_extra_directives(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(extra_directives=[
+            "--account=myproject",
+            "--qos=high",
+            "--constraint=a100",
+        ]),
+        phases=["minimization"],
+        output_dir=tmp_path,
+    )
+    content = script.read_text()
+    assert "#SBATCH --account=myproject" in content
+    assert "#SBATCH --qos=high" in content
+    assert "#SBATCH --constraint=a100" in content
+
+
+def test_slurm_script_no_extra_directives_by_default(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+    )
+    # Only standard #SBATCH lines — no unexpected extras
+    sbatch_lines = [l for l in script.read_text().splitlines() if l.startswith("#SBATCH")]
+    standard_keys = {"--job-name", "--nodes", "--ntasks", "--cpus-per-task",
+                     "--gres", "--time", "--partition", "--output", "--error"}
+    for line in sbatch_lines:
+        key = line.split()[1].split("=")[0]
+        assert key in standard_keys, f"Unexpected #SBATCH directive: {line}"
 
 
 def test_engine_uses_configured_binary(tmp_path):

@@ -48,6 +48,10 @@ class HPCConfig(BaseModel):
     partition: str = "gpu"
     auto_submit: bool = False
     gromacs_module: str | None = None  # e.g. "gromacs/2026.0-cuda"; None = skip module load
+    extra_directives: list[str] = Field(default_factory=list)
+    # Arbitrary scheduler directives appended verbatim after the standard headers.
+    # SLURM: ["--account=myproject", "--qos=high", "--constraint=a100", "--mem=128G"]
+    # PBS:   ["-l mem=128gb", "-A myproject"]
 
     @field_validator("ntasks")
     @classmethod

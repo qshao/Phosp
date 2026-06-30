@@ -8,6 +8,9 @@
 #SBATCH --partition={{ resources.partition }}
 #SBATCH --output={{ output_dir }}/slurm_%j.out
 #SBATCH --error={{ output_dir }}/slurm_%j.err
+{% for directive in resources.extra_directives %}
+#SBATCH {{ directive }}
+{% endfor %}
 
 {% if resources.gromacs_module %}
 module load {{ resources.gromacs_module }}

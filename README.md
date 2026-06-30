@@ -295,6 +295,11 @@ simulation:
     partition: gpu                # cluster queue / partition name
     auto_submit: false            # true = sbatch/qsub automatically; false = write script only
     # gromacs_module: gromacs/2026.0-cuda   # environment module to load; omit if not needed
+    # extra_directives:                      # any additional scheduler options
+    #   - "--account=myproject"
+    #   - "--qos=high"
+    #   - "--constraint=a100"
+    #   - "--mem=128G"
 ```
 
 ### `analysis` block
@@ -459,12 +464,17 @@ gromacs:
 simulation:
   runner: slurm
   hpc:
-    ntasks: 32               # OpenMP threads (SLURM: --cpus-per-task)
+    ntasks: 32               # OpenMP threads per rank (SLURM: --cpus-per-task)
     gpus: 1
     walltime: "48:00:00"
     partition: gpu
     auto_submit: false        # set true to submit automatically
     gromacs_module: gromacs/2026.0-cuda   # adjust to match your cluster's module name
+    extra_directives:         # any additional SLURM options your cluster requires
+      - "--account=myproject"
+      - "--qos=high"
+      - "--constraint=a100"
+      - "--mem=128G"
 ```
 
 ### Workflow

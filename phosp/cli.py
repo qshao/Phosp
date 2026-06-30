@@ -45,6 +45,11 @@ simulation:
     partition: gpu
     auto_submit: false
     # gromacs_module: gromacs/2026.0-cuda  # module to load; omit if GROMACS is already on PATH
+    # extra_directives:                    # any additional scheduler options, e.g.:
+    #   - "--account=myproject"
+    #   - "--qos=high"
+    #   - "--constraint=a100"
+    #   - "--mem=128G"
 
 analysis:
   plugins:

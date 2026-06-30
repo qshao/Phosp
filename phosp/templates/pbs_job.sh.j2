@@ -3,10 +3,17 @@
 #PBS -l nodes=1:ppn={{ resources.ntasks }}:gpus={{ resources.gpus }}
 #PBS -l walltime={{ resources.walltime }}
 #PBS -q {{ resources.partition }}
-#PBS -o pbs.out
-#PBS -e pbs.err
+#PBS -o {{ output_dir }}/pbs.out
+#PBS -e {{ output_dir }}/pbs.err
+{% for directive in resources.extra_directives %}
+#PBS {{ directive }}
+{% endfor %}
 
-module load gromacs
+{% if resources.gromacs_module %}
+module load {{ resources.gromacs_module }}
+{% else %}
+# Set hpc.gromacs_module in your phosp config to load the GROMACS environment module.
+{% endif %}
 
 set -euo pipefail
 WORK={{ output_dir }}

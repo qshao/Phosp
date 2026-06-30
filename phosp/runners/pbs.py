@@ -23,6 +23,8 @@ class PBSRunner(SimulationRunner):
             "gpus": hpc.gpus,
             "walltime": hpc.walltime,
             "partition": hpc.partition,
+            "gromacs_module": getattr(hpc, "gromacs_module", None),
+            "extra_directives": hpc.extra_directives,
         }
         for phase in phases:
             (output_dir / phase).mkdir(parents=True, exist_ok=True)
