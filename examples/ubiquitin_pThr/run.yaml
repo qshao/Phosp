@@ -1,0 +1,39 @@
+# Ubiquitin pThr66 — minimal end-to-end example
+# Phosphorylates Thr66 in ubiquitin and runs a short MD simulation.
+#
+# Usage:
+#   phosp run examples/ubiquitin_pThr/run.yaml
+
+input:
+  source: pdb
+  path: tests/fixtures/ubiquitin.pdb
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 66
+      resname: THR
+      phospho_type: pThr
+
+forcefield: charmm36m
+protocol: globular_protein        # built-in preset; or path to a custom YAML
+
+simulation:
+  production_time_ns: 10.0        # increase to 100-500 ns for production runs
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  hpc:
+    enabled: false                # set true and fill in scheduler/partition for HPC
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+  rmsd:
+    selection: backbone
+  rmsf:
+    selection: name CA

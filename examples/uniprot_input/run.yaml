@@ -1,0 +1,40 @@
+# UniProt input — fetch structure automatically from AlphaFold / RCSB
+# phosp downloads the AlphaFold2 model for the given UniProt accession.
+#
+# Usage:
+#   phosp predict-sites examples/uniprot_input/run.yaml   # optional: predict phospho sites
+#   phosp run examples/uniprot_input/run.yaml
+
+input:
+  source: uniprot
+  uniprot_id: P62988            # human ubiquitin
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 66
+      resname: THR
+      phospho_type: pThr
+
+forcefield: charmm36m
+protocol: globular_protein
+
+simulation:
+  production_time_ns: 100.0
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  hpc:
+    enabled: false
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+  rmsd:
+    selection: backbone
+  rmsf:
+    selection: name CA

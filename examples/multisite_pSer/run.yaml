@@ -1,0 +1,50 @@
+# Multi-site phosphorylation example
+# Phosphorylates two serine residues and runs a production MD simulation.
+#
+# Replace protein.pdb with your own structure.
+#
+# Usage:
+#   phosp run examples/multisite_pSer/run.yaml
+
+input:
+  source: pdb
+  path: protein.pdb             # replace with your PDB file
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 10
+      resname: SER
+      phospho_type: pSer
+    - chain: A
+      resid: 47
+      resname: SER
+      phospho_type: pSer
+
+forcefield: charmm36m
+protocol: globular_protein
+
+simulation:
+  production_time_ns: 100.0
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  hpc:
+    enabled: false
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+    - secondary_structure
+    - hbond
+    - sasa
+  rmsd:
+    selection: backbone
+  rmsf:
+    selection: name CA
+  sasa:
+    residues: [10, 47]          # focus on phosphorylated sites
