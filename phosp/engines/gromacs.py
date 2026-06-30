@@ -1,0 +1,82 @@
+from __future__ import annotations
+import logging
+import subprocess
+from pathlib import Path
+
+from phosp.engines.base import MDEngine, SimulationResult
+from phosp.exceptions import SimulationError
+
+logger = logging.getLogger(__name__)
+
+
+def _run_gmx(cmd: list[str], cwd: Path, input_text: str = "") -> subprocess.CompletedProcess:
+    result = subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True, input=input_text
+    )
+    if result.returncode != 0:
+        tail = (result.stderr or result.stdout)[-2000:]
+        raise SimulationError(f"GROMACS command failed: {' '.join(cmd)}\n{tail}")
+    return result
+
+
+class GROMACSEngine(MDEngine):
+    def prepare_topology(self, pdb: Path, forcefield) -> Path:
+        out_dir = pdb.parent
+        _run_gmx(
+            ["gmx", "pdb2gmx",
+             "-f", str(pdb),
+             "-o", str(out_dir / "processed.gro"),
+             "-p", str(out_dir / "topol.top"),
+             "-ff", forcefield.pdb2gmx_flag(),
+             "-water", "tip3p",
+             "-ignh"],
+            cwd=out_dir,
+        )
+        return out_dir / "topol.top"
+
+    def solvate(self, gro: Path, topology: Path, box_type: str, water_model: str) -> tuple[Path, Path]:
+        out_dir = gro.parent
+        box_gro = out_dir / "newbox.gro"
+        solvated_gro = out_dir / "solvated.gro"
+        _run_gmx(
+            ["gmx", "editconf", "-f", str(gro), "-o", str(box_gro),
+             "-c", "-d", "1.2", "-bt", box_type],
+            cwd=out_dir,
+        )
+        _run_gmx(
+            ["gmx", "solvate", "-cp", str(box_gro), "-cs", f"{water_model}.gro",
+             "-o", str(solvated_gro), "-p", str(topology)],
+            cwd=out_dir,
+        )
+        return solvated_gro, topology
+
+    def add_ions(self, gro: Path, topology: Path, concentration_mM: float, neutralize: bool) -> tuple[Path, Path]:
+        out_dir = gro.parent
+        ions_tpr = out_dir / "ions.tpr"
+        ions_gro = out_dir / "ions.gro"
+        genion_mdp = out_dir / "genion.mdp"
+        genion_mdp.write_text("integrator=steep\nnsteps=0\n")
+        _run_gmx(
+            ["gmx", "grompp", "-f", str(genion_mdp), "-c", str(gro),
+             "-p", str(topology), "-o", str(ions_tpr), "-maxwarn", "2"],
+            cwd=out_dir,
+        )
+        conc = concentration_mM / 1000.0
+        neutral_flag = ["-neutral"] if neutralize else []
+        _run_gmx(
+            ["gmx", "genion", "-s", str(ions_tpr), "-o", str(ions_gro),
+             "-p", str(topology), "-pname", "NA", "-nname", "CL",
+             "-conc", str(conc)] + neutral_flag,
+            cwd=out_dir,
+            input_text="SOL\n",
+        )
+        return ions_gro, topology
+
+    def generate_mdp(self, phase: str, protocol, output_dir: Path) -> Path:
+        return protocol.render_mdp(phase, output_dir)
+
+    def run_phase(self, phase, mdp, topology, structure, output_dir, restraint_gro=None):
+        raise NotImplementedError("Implemented in Task 14")
+
+    def generate_hpc_script(self, scheduler, resources, phases, output_dir):
+        raise NotImplementedError("Implemented in Task 14")
