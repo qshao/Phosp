@@ -37,7 +37,9 @@ def test_stage4_run_executes_requested_plugins(tmp_path):
     (stage3_dir / "production.xtc").write_bytes(b"")
     (stage3_dir / "production.tpr").write_bytes(b"")
 
-    stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "output" / "stage4")
+    stage4_dir = tmp_path / "output" / "stage4"
+    stage4_dir.mkdir(parents=True)
+    stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), stage4_dir)
 
     fake_universe = MagicMock()
     with patch("phosp.stages.stage4_analyze.mda.Universe", return_value=fake_universe), \

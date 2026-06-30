@@ -22,7 +22,9 @@ def _make_stage3(tmp_path):
         phase="any", output_dir=tmp_path, success=True,
         log_path=tmp_path / "fake.log"
     )
-    return Stage3Simulate(cfg, engine, MagicMock(), tmp_path / "output" / "stage3")
+    stage3_dir = tmp_path / "output" / "stage3"
+    stage3_dir.mkdir(parents=True)
+    return Stage3Simulate(cfg, engine, MagicMock(), stage3_dir)
 
 
 def test_stage3_validate_raises_if_stage2_missing(tmp_path):
