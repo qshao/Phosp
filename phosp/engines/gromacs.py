@@ -9,10 +9,19 @@ from phosp.exceptions import SimulationError
 logger = logging.getLogger(__name__)
 
 
-def _run_gmx(cmd: list[str], cwd: Path, input_text: str = "") -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, input=input_text
-    )
+def _run_gmx(
+    cmd: list[str], cwd: Path, input_text: str = "", timeout: int | None = None
+) -> subprocess.CompletedProcess:
+    try:
+        result = subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True,
+            input=input_text, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        minutes = timeout // 60 if timeout else "?"
+        raise SimulationError(
+            f"GROMACS timed out after {minutes} minutes: {cmd[0]} {cmd[1]}"
+        )
     if result.returncode != 0:
         tail = (result.stderr or result.stdout)[-2000:]
         raise SimulationError(f"GROMACS command failed: {' '.join(cmd)}\n{tail}")
@@ -20,8 +29,9 @@ def _run_gmx(cmd: list[str], cwd: Path, input_text: str = "") -> subprocess.Comp
 
 
 class GROMACSEngine(MDEngine):
-    def __init__(self, binary: str = "gmx") -> None:
+    def __init__(self, binary: str = "gmx", timeout_minutes: int | None = None) -> None:
         self._binary = binary
+        self._timeout = timeout_minutes * 60 if timeout_minutes is not None else None
 
     def prepare_topology(
         self,
@@ -42,6 +52,7 @@ class GROMACSEngine(MDEngine):
              "-water", water_model,
              "-ignh"],
             cwd=output_dir,
+            timeout=self._timeout,
         )
         return output_dir / "topol.top"
 
@@ -58,11 +69,13 @@ class GROMACSEngine(MDEngine):
             [self._binary, "editconf", "-f", str(gro), "-o", str(box_gro),
              "-c", "-d", "1.2", "-bt", box_type],
             cwd=out_dir,
+            timeout=self._timeout,
         )
         _run_gmx(
             [self._binary, "solvate", "-cp", str(box_gro), "-cs", f"{water_box}.gro",
              "-o", str(solvated_gro), "-p", str(topology)],
             cwd=out_dir,
+            timeout=self._timeout,
         )
         return solvated_gro, topology
 
@@ -76,6 +89,7 @@ class GROMACSEngine(MDEngine):
             [self._binary, "grompp", "-f", str(genion_mdp), "-c", str(gro),
              "-p", str(topology), "-o", str(ions_tpr), "-maxwarn", "2"],
             cwd=out_dir,
+            timeout=self._timeout,
         )
         conc = concentration_mM / 1000.0
         neutral_flag = ["-neutral"] if neutralize else []
@@ -85,6 +99,7 @@ class GROMACSEngine(MDEngine):
              "-conc", str(conc)] + neutral_flag,
             cwd=out_dir,
             input_text="SOL\n",
+            timeout=self._timeout,
         )
         return ions_gro, topology
 
@@ -115,7 +130,7 @@ class GROMACSEngine(MDEngine):
         ]
         if restraint_gro:
             grompp_cmd += ["-r", str(restraint_gro)]
-        _run_gmx(grompp_cmd, cwd=output_dir)
+        _run_gmx(grompp_cmd, cwd=output_dir, timeout=self._timeout)
 
         mdrun_cmd = [
             self._binary, "mdrun", "-v",
@@ -124,7 +139,7 @@ class GROMACSEngine(MDEngine):
         ]
         if gpu_id is not None:
             mdrun_cmd += ["-gpu_id", str(gpu_id)]
-        _run_gmx(mdrun_cmd, cwd=output_dir)
+        _run_gmx(mdrun_cmd, cwd=output_dir, timeout=self._timeout)
 
         return SimulationResult(
             phase=phase,

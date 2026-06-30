@@ -157,7 +157,10 @@ class Pipeline:
             shutil.rmtree(tmp_dir)
         tmp_dir.mkdir(parents=True)
 
-        engine = GROMACSEngine(binary=self.config.gromacs.binary)
+        engine = GROMACSEngine(
+            binary=self.config.gromacs.binary,
+            timeout_minutes=self.config.gromacs.timeout_minutes,
+        )
         ff = CHARMM36mFF() if self.config.forcefield == "charmm36m" else AMBERff14SBFF()
         stage = self._build_stage(stage_name, engine, ff, tmp_dir)
 

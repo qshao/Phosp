@@ -250,6 +250,54 @@ def test_slurm_script_no_extra_directives_by_default(tmp_path):
         assert key in standard_keys, f"Unexpected #SBATCH directive: {line}"
 
 
+def test_run_gmx_raises_simulation_error_on_timeout(tmp_path):
+    """TimeoutExpired is caught and re-raised as SimulationError with 'timed out'."""
+    import subprocess
+    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(["gmx"], 60)):
+        with pytest.raises(SimulationError, match="timed out after 1 minutes"):
+            _run_gmx(["gmx", "mdrun"], cwd=tmp_path, timeout=60)
+
+
+def test_engine_passes_timeout_to_run_gmx(tmp_path):
+    """GROMACSEngine with timeout_minutes=2 passes 120s to _run_gmx."""
+    engine = GROMACSEngine(binary="gmx", timeout_minutes=2)
+    phase_dir = tmp_path / "min"
+    phase_dir.mkdir()
+    (phase_dir / "min.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="min",
+            mdp=tmp_path / "min.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+        )
+    for call in mock_gmx.call_args_list:
+        assert call.kwargs.get("timeout") == 120
+
+
+def test_engine_no_timeout_by_default(tmp_path):
+    """GROMACSEngine with no timeout_minutes passes timeout=None to _run_gmx."""
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "min"
+    phase_dir.mkdir()
+    (phase_dir / "min.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="min",
+            mdp=tmp_path / "min.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+        )
+    for call in mock_gmx.call_args_list:
+        assert call.kwargs.get("timeout") is None
+
+
 def test_engine_uses_configured_binary(tmp_path):
     engine = GROMACSEngine(binary="/opt/gromacs/bin/gmx")
     phase_dir = tmp_path / "min"
