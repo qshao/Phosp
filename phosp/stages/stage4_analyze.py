@@ -1,0 +1,101 @@
+from __future__ import annotations
+import importlib
+import logging
+import pkgutil
+from pathlib import Path
+
+import MDAnalysis as mda
+
+import phosp.plugins.analysis as _analysis_pkg
+from phosp.exceptions import AnalysisError, StageInputError
+from phosp.plugins.analysis.base import AnalysisPlugin
+from phosp.stages.base import Stage, StageResult
+
+logger = logging.getLogger(__name__)
+
+
+def _discover_plugins() -> dict[str, type[AnalysisPlugin]]:
+    registry: dict[str, type[AnalysisPlugin]] = {}
+    pkg_path = Path(_analysis_pkg.__file__).parent
+    for _, mod_name, _ in pkgutil.iter_modules([str(pkg_path)]):
+        if mod_name == "base":
+            continue
+        importlib.import_module(f"phosp.plugins.analysis.{mod_name}")
+    for cls in AnalysisPlugin.__subclasses__():
+        registry[cls.name] = cls
+    return registry
+
+
+class Stage4Analyze(Stage):
+    def validate_inputs(self) -> None:
+        prod_dir = self.output_root.parent / "stage3" / "production"
+        for f in ["prod.xtc", "prod.tpr"]:
+            if not (prod_dir / f).exists():
+                raise StageInputError(
+                    f"{f} not found in {prod_dir}. Run stage3 first."
+                )
+
+    def run(self) -> StageResult:
+        out = self.output_root
+        out.mkdir(parents=True, exist_ok=True)
+        cfg = self.config
+        prod_dir = out.parent / "stage3" / "production"
+
+        universe = mda.Universe(
+            str(prod_dir / "prod.tpr"),
+            str(prod_dir / "prod.xtc"),
+        )
+
+        registry = _discover_plugins()
+        requested = cfg.analysis.plugins
+        artifacts: dict[str, Path] = {}
+
+        for plugin_name in requested:
+            if plugin_name not in registry:
+                logger.warning("Plugin '%s' not found — skipping", plugin_name)
+                continue
+            plugin_config = getattr(cfg.analysis, plugin_name, {})
+            if not isinstance(plugin_config, dict):
+                plugin_config = plugin_config.model_dump() if hasattr(plugin_config, "model_dump") else {}
+
+            try:
+                plugin = registry[plugin_name]()
+                result_df = plugin.run(universe, plugin_config)
+                csv_path = out / f"{plugin_name}.csv"
+                result_df.to_csv(csv_path, index=False)
+
+                fig = plugin.plot(result_df)
+                png_path = out / f"{plugin_name}.png"
+                fig.savefig(png_path, dpi=150, bbox_inches="tight")
+                import matplotlib.pyplot as plt
+                plt.close(fig)
+
+                artifacts[plugin_name] = csv_path
+                logger.info("Plugin '%s' complete", plugin_name)
+            except Exception as e:
+                raise AnalysisError(f"Plugin '{plugin_name}' failed: {e}") from e
+
+        return StageResult(stage="stage4", output_dir=out, artifacts=artifacts)
+
+    @staticmethod
+    def regenerate_report(output_dir: Path) -> None:
+        _render_report(output_dir)
+
+
+def _render_report(output_dir: Path) -> Path:
+    from jinja2 import Environment, FileSystemLoader
+    import base64
+    templates_dir = Path(__file__).parent.parent / "templates"
+    env = Environment(loader=FileSystemLoader(str(templates_dir)))
+    template = env.get_template("report.html.j2")
+
+    png_files = sorted(output_dir.glob("*.png"))
+    figures = []
+    for png in png_files:
+        b64 = base64.b64encode(png.read_bytes()).decode()
+        figures.append({"name": png.stem, "data": b64})
+
+    html = template.render(figures=figures, output_dir=str(output_dir))
+    report_path = output_dir / "report.html"
+    report_path.write_text(html)
+    return report_path

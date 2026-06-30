@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phosp Analysis Report</title>
+  <style>
+    body { font-family: sans-serif; max-width: 1100px; margin: auto; padding: 2rem; }
+    h1 { color: #2c3e50; }
+    .figure-section { margin-bottom: 3rem; }
+    .figure-section h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.3rem; }
+    img { max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Phosp MD Analysis Report</h1>
+  <p>Output directory: <code>{{ output_dir }}</code></p>
+  {% for fig in figures %}
+  <div class="figure-section">
+    <h2>{{ fig.name | replace("_", " ") | title }}</h2>
+    <img src="data:image/png;base64,{{ fig.data }}" alt="{{ fig.name }}">
+  </div>
+  {% endfor %}
+</body>
+</html>
