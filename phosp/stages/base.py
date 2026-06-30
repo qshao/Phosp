@@ -2,6 +2,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from phosp.ui import PhospUI
 
 
 @dataclass
@@ -12,11 +16,12 @@ class StageResult:
 
 
 class Stage(ABC):
-    def __init__(self, config, engine, forcefield, output_root: Path) -> None:
+    def __init__(self, config, engine, forcefield, output_root: Path, ui: PhospUI | None = None) -> None:
         self.config = config
         self.engine = engine
         self.forcefield = forcefield
         self.output_root = output_root
+        self.ui = ui
 
     @abstractmethod
     def validate_inputs(self) -> None:
