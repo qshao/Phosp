@@ -73,14 +73,20 @@ def run(
     from phosp.pipeline import Pipeline
     from phosp.ui import PhospUI
 
-    configure_logging(level=log_level, log_file=log_file)
+    try:
+        configure_logging(level=log_level, log_file=log_file)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
     cfg = load_config(config_path)
 
     if dry_run:
         if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
             typer.echo(f"Error: input PDB not found: {cfg.input.path}", err=True)
             raise typer.Exit(code=1)
-        Pipeline(cfg, output_root=config_path.parent / "output").execute(dry_run=True)
+        Pipeline(cfg, output_root=config_path.parent / "output").execute(
+            dry_run=True, start_from=start_from, only_stages=stages
+        )
         estimated_gb = cfg.simulation.production_time_ns * 1.0 + 0.5
         typer.echo(f"Estimated disk space needed: {estimated_gb:.1f} GB")
         typer.echo("Dry run complete — no stages executed")
@@ -111,6 +117,9 @@ def predict_sites(
     from phosp.prediction.netphos import NetPhos
     configure_logging()
     cfg = load_config(config_path)
+    if cfg.input.path is None:
+        typer.echo("Error: predict-sites requires input.source=pdb with a path set", err=True)
+        raise typer.Exit(code=1)
     results = NetPhos().predict(cfg.input.path, threshold=threshold)
     for r in results:
         typer.echo(f"  chain={r['chain']} resid={r['resid']} resname={r['resname']} "
@@ -136,6 +145,7 @@ def init(
     if path.exists():
         typer.echo(f"Error: {path} already exists. Use a different path or delete it first.", err=True)
         raise typer.Exit(code=1)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_STARTER_CONFIG)
     typer.echo(f"Config written to {path}")
     typer.echo(f"Next: phosp predict-sites {path}")
@@ -185,5 +195,5 @@ def status(output_dir: Path = typer.Argument(..., help="Pipeline output director
 
     console.print(table)
 
-    if len(completed) < 4:
+    if not {"stage1", "stage2", "stage3", "stage4"}.issubset(completed):
         raise typer.Exit(code=1)

@@ -116,8 +116,9 @@ class Pipeline:
         except Exception as exc:
             if self.ui:
                 self.ui.stage_error(stage_name, exc)
-            if tmp_dir.exists():
-                shutil.rmtree(tmp_dir)
+            for d in (tmp_dir, final_dir):
+                if d.exists():
+                    shutil.rmtree(d)
             raise
 
     @staticmethod

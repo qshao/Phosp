@@ -2,6 +2,7 @@ from __future__ import annotations
 import time
 from rich.console import Console
 from rich.live import Live
+from rich.markup import escape
 from rich.panel import Panel
 from rich.spinner import Spinner
 
@@ -38,7 +39,7 @@ class PhospUI:
         self._stop_live()
         label = _STAGE_LABELS.get(name, name)
         self._console.print(Panel(
-            f"[bold]{type(exc).__name__}:[/] {exc}",
+            f"[bold]{type(exc).__name__}:[/] {escape(str(exc))}",
             title=f"[red]✗ {label} failed[/]",
             border_style="red",
         ))

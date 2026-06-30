@@ -83,13 +83,15 @@ class Stage4Analyze(Stage):
                 logger.warning("Plugin '%s' failed: %s", plugin_name, error_msg)
                 failures.append((plugin_name, error_msg))
 
+        final_out = out.parent / out.name.lstrip('.').removesuffix('_tmp') if out.name.startswith('.') else out
         if failures and not artifacts:
+            _render_report(out, report_dir=final_out, failed_plugins=failures)
             raise AnalysisError(
                 "All analysis plugins failed:\n"
                 + "\n".join(f"  {n}: {e}" for n, e in failures)
             )
 
-        _render_report(out, failed_plugins=failures)
+        _render_report(out, report_dir=final_out, failed_plugins=failures)
         return StageResult(stage="stage4", output_dir=out, artifacts=artifacts)
 
     @staticmethod
@@ -99,14 +101,15 @@ class Stage4Analyze(Stage):
 
 def _render_report(
     output_dir: Path,
+    report_dir: Path | None = None,
     failed_plugins: list[tuple[str, str]] | None = None,
 ) -> Path:
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    from jinja2 import Environment, FileSystemLoader
     import base64
     templates_dir = Path(__file__).parent.parent / "templates"
     env = Environment(
         loader=FileSystemLoader(str(templates_dir)),
-        autoescape=select_autoescape(["html", "htm"]),
+        autoescape=True,
     )
     template = env.get_template("report.html.j2")
 
@@ -118,7 +121,7 @@ def _render_report(
 
     html = template.render(
         figures=figures,
-        output_dir=str(output_dir),
+        output_dir=str(report_dir or output_dir),
         failed_plugins=failed_plugins or [],
     )
     report_path = output_dir / "report.html"

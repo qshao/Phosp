@@ -37,7 +37,7 @@ class Stage3Simulate(Stage):
         artifacts: dict[str, Path] = {}
         for phase in _PHASES:
             phase_dir = out / phase
-            phase_dir.mkdir(exist_ok=True)
+            phase_dir.mkdir(parents=True, exist_ok=True)
             mdp = stage2_dir / f"{phase}.mdp"
             restraint = structure if phase in _RESTRAINT_PHASES else None
             result = self.engine.run_phase(
@@ -63,13 +63,14 @@ class Stage3Simulate(Stage):
             "walltime": hpc.walltime,
             "partition": hpc.partition,
         }
+        final_out = out.parent / out.name.lstrip('.').removesuffix('_tmp') if out.name.startswith('.') else out
         for phase in _PHASES:
-            (out / phase).mkdir(exist_ok=True)
+            (out / phase).mkdir(parents=True, exist_ok=True)
         script = self.engine.generate_hpc_script(
             scheduler=hpc.scheduler,
             resources=resources,
             phases=_PHASES,
-            output_dir=out,
+            output_dir=final_out,
         )
         if hpc.auto_submit:
             cmd = "sbatch" if hpc.scheduler == "slurm" else "qsub"
