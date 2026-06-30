@@ -117,6 +117,7 @@ simulation:
   water_model: tip3p          # tip3p | spce
   box_type: dodecahedron      # dodecahedron | cubic
   salt_concentration_mM: 150.0
+  gpu_id: ~                       # GPU index for mdrun (0, 1, …); ~ = auto-detect
   hpc:
     enabled: false
     scheduler: slurm           # slurm | pbs

@@ -53,6 +53,47 @@ def test_run_phase_returns_simulation_result(tmp_path):
     assert result.success is True
 
 
+def test_run_phase_passes_gpu_id_to_mdrun(tmp_path):
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "nvt"
+    phase_dir.mkdir()
+    (phase_dir / "nvt.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="nvt",
+            mdp=tmp_path / "nvt.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+            gpu_id=0,
+        )
+    mdrun_call = mock_gmx.call_args_list[1]  # second call is mdrun
+    assert "-gpu_id" in mdrun_call.args[0]
+    assert "0" in mdrun_call.args[0]
+
+
+def test_run_phase_omits_gpu_flag_when_gpu_id_is_none(tmp_path):
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "nvt"
+    phase_dir.mkdir()
+    (phase_dir / "nvt.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="nvt",
+            mdp=tmp_path / "nvt.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+            gpu_id=None,
+        )
+    mdrun_call = mock_gmx.call_args_list[1]
+    assert "-gpu_id" not in mdrun_call.args[0]
+
+
 def test_generate_slurm_script(tmp_path):
     engine = GROMACSEngine()
     work_dir = tmp_path / "stage3"

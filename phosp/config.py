@@ -70,6 +70,7 @@ class SimulationConfig(BaseModel):
     water_model: Literal["tip3p", "spce"] = "tip3p"
     box_type: Literal["dodecahedron", "cubic"] = "dodecahedron"
     salt_concentration_mM: float = 150.0
+    gpu_id: int | None = None  # GPU index for mdrun; None = auto-detect
     hpc: HPCConfig = Field(default_factory=HPCConfig)
 
     @field_validator("production_time_ns")

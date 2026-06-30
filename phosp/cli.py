@@ -32,6 +32,7 @@ simulation:
   water_model: tip3p          # "tip3p" or "spce"
   box_type: dodecahedron      # "dodecahedron" or "cubic"
   salt_concentration_mM: 150.0
+  gpu_id: ~             # GPU index for mdrun (0, 1, …); ~ = auto-detect
 
   hpc:
     enabled: false        # true to generate HPC job scripts

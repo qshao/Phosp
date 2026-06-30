@@ -96,6 +96,7 @@ class GROMACSEngine(MDEngine):
         structure: Path,
         output_dir: Path,
         restraint_gro: Path | None = None,
+        gpu_id: int | None = None,
     ) -> SimulationResult:
         output_dir.mkdir(parents=True, exist_ok=True)
         tpr = output_dir / f"{phase}.tpr"
@@ -118,6 +119,8 @@ class GROMACSEngine(MDEngine):
             "-deffnm", str(output_dir / phase),
             "-ntmpi", "1",
         ]
+        if gpu_id is not None:
+            mdrun_cmd += ["-gpu_id", str(gpu_id)]
         _run_gmx(mdrun_cmd, cwd=output_dir)
 
         return SimulationResult(

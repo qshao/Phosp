@@ -53,6 +53,7 @@ class Stage3Simulate(Stage):
                 structure=current_structure,
                 output_dir=phase_dir,
                 restraint_gro=restraint,
+                gpu_id=self.config.simulation.gpu_id,
             )
             next_gro = phase_dir / f"{phase}.gro"
             if next_gro.exists():
