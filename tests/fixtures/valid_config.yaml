@@ -1,0 +1,32 @@
+input:
+  source: pdb
+  path: tests/fixtures/ubiquitin.pdb
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 65
+      resname: THR
+      phospho_type: pThr
+
+forcefield: charmm36m
+engine: gromacs
+protocol: globular_protein
+
+simulation:
+  production_time_ns: 100
+  output_freq_ps: 10
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150
+  hpc:
+    enabled: false
+
+analysis:
+  plugins: [rmsd, rmsf]
+  rmsd:
+    selection: backbone
+    reference: first_frame
+  rmsf:
+    selection: "name CA"
