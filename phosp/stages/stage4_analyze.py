@@ -57,12 +57,6 @@ class Stage4Analyze(Stage):
         cfg = self.config
         prod_dir = out.parent / "stage3" / "production"
 
-        # Use GRO as topology — avoids TPR version incompatibilities with MDAnalysis
-        universe = mda.Universe(
-            str(prod_dir / "production.gro"),
-            str(prod_dir / "production.xtc"),
-        )
-
         registry = _discover_plugins()
         requested = cfg.analysis.plugins
         unknown = [p for p in requested if p not in registry]
@@ -71,13 +65,17 @@ class Stage4Analyze(Stage):
                 f"Unknown analysis plugins: {unknown}. "
                 f"Valid plugins: {sorted(registry)}"
             )
+
+        # Use GRO as topology — avoids TPR version incompatibilities with MDAnalysis
+        universe = mda.Universe(
+            str(prod_dir / "production.gro"),
+            str(prod_dir / "production.xtc"),
+        )
+
         artifacts: dict[str, Path] = {}
         failures: list[tuple[str, str]] = []
 
         for plugin_name in requested:
-            if plugin_name not in registry:
-                logger.warning("Plugin '%s' not found — skipping", plugin_name)
-                continue
             plugin_config = getattr(cfg.analysis, plugin_name, {})
             if not isinstance(plugin_config, dict):
                 plugin_config = plugin_config.model_dump() if hasattr(plugin_config, "model_dump") else {}

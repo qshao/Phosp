@@ -168,7 +168,8 @@ def test_unknown_plugin_name_raises_analysis_error(tmp_path):
 
     stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "output" / "stage4")
     with patch("phosp.stages.stage4_analyze._discover_plugins",
-               return_value={"rmsd": MagicMock, "rmsf": MagicMock}), \
-         patch("phosp.stages.stage4_analyze.mda.Universe", return_value=MagicMock()):
+               return_value={"rmsd": MagicMock, "rmsf": MagicMock}) as discover_mock, \
+         patch("phosp.stages.stage4_analyze.mda.Universe", return_value=MagicMock()) as mda_universe_mock:
         with pytest.raises(AnalysisError, match="Unknown analysis plugins.*rmsdf"):
             stage.run()
+        mda_universe_mock.assert_not_called()
