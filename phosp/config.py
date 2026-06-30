@@ -47,6 +47,7 @@ class HPCConfig(BaseModel):
     gpus: int = 1
     walltime: str = "24:00:00"
     partition: str = "gpu"
+    auto_submit: bool = False
 
 
 class SimulationConfig(BaseModel):
