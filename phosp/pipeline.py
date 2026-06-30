@@ -127,11 +127,24 @@ class Pipeline:
             stages = [f"stage{n.strip()}" for n in only_stages.split(",")]
         else:
             stages = list(_ALL_STAGES)
+
+        invalid = [s for s in stages if s not in _ALL_STAGES]
+        if invalid:
+            raise PhospError(
+                f"Unknown stage(s): {invalid}. Valid stages: {_ALL_STAGES}"
+            )
+
         if start_from:
+            if start_from not in _ALL_STAGES:
+                raise PhospError(
+                    f"Unknown stage: {start_from!r}. Valid stages: {_ALL_STAGES}"
+                )
             try:
                 stages = stages[stages.index(start_from):]
             except ValueError:
-                raise PhospError(f"Unknown stage: {start_from}")
+                raise PhospError(
+                    f"--start-from={start_from!r} is not in the stages to run: {stages}"
+                )
         return stages
 
     def _run_stage(self, stage_name: str) -> None:

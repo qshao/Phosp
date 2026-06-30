@@ -154,3 +154,17 @@ def test_disk_warning_logged_when_low(tmp_path, caplog):
         p.execute(only_stages="1")
 
     assert any("disk space" in r.message.lower() for r in caplog.records)
+
+
+def test_resolve_stages_raises_on_unknown_only_stages(tmp_path):
+    """--stages with a bad stage name raises PhospError before any stage runs."""
+    p = _make_pipeline(tmp_path)
+    with pytest.raises(PhospError, match="Unknown stage"):
+        p._resolve_stages(start_from=None, only_stages="1,foo")
+
+
+def test_resolve_stages_raises_on_unknown_start_from(tmp_path):
+    """--start-from with a bad name raises PhospError before any stage runs."""
+    p = _make_pipeline(tmp_path)
+    with pytest.raises(PhospError, match="Unknown stage"):
+        p._resolve_stages(start_from="stageX", only_stages=None)
