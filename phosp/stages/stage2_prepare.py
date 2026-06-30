@@ -19,7 +19,6 @@ class Stage2Prepare(Stage):
 
     def run(self) -> StageResult:
         out = self.output_root
-        out.mkdir(parents=True, exist_ok=True)
         cfg = self.config
         sim = cfg.simulation
 

@@ -22,7 +22,6 @@ class Stage3Simulate(Stage):
 
     def run(self) -> StageResult:
         out = self.output_root
-        out.mkdir(parents=True, exist_ok=True)
         cfg = self.config
         stage2_dir = out.parent / "stage2"
         topology = stage2_dir / "topol.top"

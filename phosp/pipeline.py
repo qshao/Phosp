@@ -3,19 +3,24 @@ import logging
 import shutil
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from phosp.config import PhospConfig
 from phosp.engines.gromacs import GROMACSEngine
 from phosp.exceptions import PhospError
 from phosp.utils.checkpoint import Checkpoint
 
+if TYPE_CHECKING:
+    from phosp.ui import PhospUI
+
 logger = logging.getLogger(__name__)
 
 _ALL_STAGES = ["stage1", "stage2", "stage3", "stage4"]
+_DISK_WARN_GB = 10.0
 
 
 class Pipeline:
-    def __init__(self, config: PhospConfig, output_root: Path, ui=None) -> None:
+    def __init__(self, config: PhospConfig, output_root: Path, ui: PhospUI | None = None) -> None:
         self.config = config
         self.output_root = output_root
         self.ui = ui
@@ -30,6 +35,8 @@ class Pipeline:
     ) -> None:
         self._preflight_checks()
         if dry_run:
+            stages = self._resolve_stages(start_from, only_stages)
+            logger.info("Dry run: would execute stages: %s", ", ".join(stages))
             return
         self._clean_orphan_tmpdirs()
         stages = self._resolve_stages(start_from, only_stages)
@@ -48,13 +55,12 @@ class Pipeline:
         self._warn_disk_space()
 
     def _warn_disk_space(self) -> None:
-        estimated_gb = self.config.simulation.production_time_ns * 1.0 + 0.5
         try:
             available_gb = shutil.disk_usage(self.output_root).free / (1024 ** 3)
-            if available_gb < estimated_gb:
+            if available_gb < _DISK_WARN_GB:
                 logger.warning(
-                    "Low disk space: estimated %.1f GB needed, %.1f GB available at %s",
-                    estimated_gb, available_gb, self.output_root,
+                    "Low disk space: minimum %.1f GB needed, %.1f GB available at %s",
+                    _DISK_WARN_GB, available_gb, self.output_root,
                 )
         except OSError:
             pass

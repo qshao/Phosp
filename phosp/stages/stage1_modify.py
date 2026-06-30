@@ -22,7 +22,6 @@ class Stage1Modify(Stage):
 
     def run(self) -> StageResult:
         out = self.output_root
-        out.mkdir(parents=True, exist_ok=True)
         cfg = self.config
 
         # 1. Acquire structure

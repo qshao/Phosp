@@ -40,7 +40,6 @@ class Stage4Analyze(Stage):
 
     def run(self) -> StageResult:
         out = self.output_root
-        out.mkdir(parents=True, exist_ok=True)
         cfg = self.config
         prod_dir = out.parent / "stage3" / "production"
 

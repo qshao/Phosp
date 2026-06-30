@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: phosp
+Version: 0.1.0
+Requires-Python: >=3.10
+Requires-Dist: mdanalysis>=2.6
+Requires-Dist: biopython>=1.81
+Requires-Dist: pydantic>=2.0
+Requires-Dist: typer>=0.9
+Requires-Dist: jinja2>=3.1
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Requires-Dist: freesasa>=2.1
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: ruff>=0.1; extra == "dev"
