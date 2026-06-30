@@ -14,7 +14,7 @@ class RMSDPlugin(AnalysisPlugin):
 
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
         selection = config.get("selection", "backbone")
-        universe.trajectory[0]
+        universe.trajectory[0]  # reset to frame 0 so copy() captures it as reference
         reference = universe.copy()
         R = rms.RMSD(universe, reference, select=selection)
         R.run()
