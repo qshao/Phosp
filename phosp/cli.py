@@ -312,3 +312,22 @@ def status(
 
     if not {"stage1", "stage2", "stage3", "stage4"}.issubset(completed):
         raise typer.Exit(code=1)
+
+
+@app.command(help="Remove pipeline output directory and checkpoint (with confirmation).")
+def clean(
+    output_dir: Path = typer.Argument(..., help="Pipeline output directory to remove (e.g. output/)"),
+) -> None:
+    import shutil
+    from phosp.logging import configure_logging
+    configure_logging()
+
+    if not output_dir.exists():
+        typer.echo(f"Error: output directory not found: {output_dir}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Will remove: {output_dir.resolve()}")
+    typer.confirm("Proceed? This cannot be undone.", abort=True)
+
+    shutil.rmtree(output_dir)
+    typer.echo(f"Removed {output_dir}")

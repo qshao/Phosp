@@ -112,3 +112,31 @@ def test_checkpoint_stores_duration_after_stage_completes(tmp_path: Path):
     dur = cp.get_duration("stage1")
     assert dur is not None
     assert dur >= 0.0
+
+
+def test_clean_removes_output_dir(tmp_path: Path):
+    """phosp clean deletes the output directory after confirmation."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "checkpoint.json").write_text('{"completed_stages": []}')
+    (output_dir / "stage1").mkdir()
+
+    result = runner.invoke(app, ["clean", str(output_dir)], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert not output_dir.exists()
+
+
+def test_clean_aborts_on_no(tmp_path: Path):
+    """phosp clean aborts without deleting when user says no."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    result = runner.invoke(app, ["clean", str(output_dir)], input="n\n")
+    assert result.exit_code != 0 or "Aborted" in result.output or "aborted" in result.output.lower()
+    assert output_dir.exists()
+
+
+def test_clean_missing_dir(tmp_path: Path):
+    """phosp clean exits with error if output_dir doesn't exist."""
+    result = runner.invoke(app, ["clean", str(tmp_path / "nonexistent")])
+    assert result.exit_code == 1
