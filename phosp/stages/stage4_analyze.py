@@ -101,10 +101,13 @@ def _render_report(
     output_dir: Path,
     failed_plugins: list[tuple[str, str]] | None = None,
 ) -> Path:
-    from jinja2 import Environment, FileSystemLoader
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
     import base64
     templates_dir = Path(__file__).parent.parent / "templates"
-    env = Environment(loader=FileSystemLoader(str(templates_dir)))
+    env = Environment(
+        loader=FileSystemLoader(str(templates_dir)),
+        autoescape=select_autoescape(["html", "htm"]),
+    )
     template = env.get_template("report.html.j2")
 
     png_files = sorted(output_dir.glob("*.png"))

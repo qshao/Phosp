@@ -104,6 +104,8 @@ class Pipeline:
         try:
             stage.validate_inputs()
             result = stage.run()
+            if final_dir.exists():
+                shutil.rmtree(final_dir)
             tmp_dir.rename(final_dir)
             remapped = self._remap_artifacts(result.artifacts, tmp_dir, final_dir)
             self.checkpoint.mark_complete(stage_name, remapped)

@@ -36,3 +36,22 @@ def test_configure_logging_adds_file_handler(tmp_path: Path):
     assert logging.StreamHandler in handler_types
     assert logging.FileHandler in handler_types
     _clear_phosp_handlers()
+
+
+def test_configure_logging_file_handler_idempotent(tmp_path: Path):
+    _clear_phosp_handlers()
+    log_file = tmp_path / "phosp.log"
+    configure_logging(log_file=log_file)
+    configure_logging(log_file=log_file)
+    root = logging.getLogger("phosp")
+    file_handlers = [h for h in root.handlers if isinstance(h, logging.FileHandler)]
+    assert len(file_handlers) == 1
+    _clear_phosp_handlers()
+
+
+def test_configure_logging_invalid_level_raises():
+    _clear_phosp_handlers()
+    import pytest
+    with pytest.raises(ValueError, match="Invalid log level"):
+        configure_logging(level="NOTLEVEL")
+    _clear_phosp_handlers()
