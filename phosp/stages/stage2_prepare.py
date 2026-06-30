@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 
 class Stage2Prepare(Stage):
     def validate_inputs(self) -> None:
-        modified_pdb = self.output_root.parent / "stage1" / "modified.pdb"
-        if not modified_pdb.exists():
-            raise StageInputError(f"modified.pdb not found: {modified_pdb}. Run stage1 first.")
+        stage1_dir = self.output_root.parent / "stage1"
+        for fname in ("modified.pdb", "modification_manifest.json"):
+            if not (stage1_dir / fname).exists():
+                raise StageInputError(f"{fname} not found in {stage1_dir}. Run stage1 first.")
 
     def run(self) -> StageResult:
         out = self.output_root
