@@ -155,6 +155,37 @@ def test_report_generated_after_run(tmp_path):
     assert (tmp_path / "output" / "stage4" / "report.html").exists()
 
 
+def test_plugin_config_includes_gromacs_timeout(tmp_path):
+    """gromacs.timeout_minutes is threaded into every plugin's config so
+    subprocess-based plugins (e.g. mmpbsa) can bound external tool runtime."""
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    cfg.analysis.plugins = ["fake"]
+    cfg.gromacs.timeout_minutes = 42
+
+    stage3_dir = tmp_path / "output" / "stage3" / "production"
+    stage3_dir.mkdir(parents=True)
+    (stage3_dir / "production.xtc").write_bytes(b"")
+    (stage3_dir / "production.gro").write_bytes(b"")
+
+    captured = {}
+
+    class _CapturePlugin(AnalysisPlugin):
+        name = "fake"
+        def run(self, universe, config):
+            captured.update(config)
+            return pd.DataFrame({"x": [1]})
+        def plot(self, result):
+            import matplotlib.pyplot as plt
+            return plt.figure()
+
+    stage = Stage4Analyze(cfg, MagicMock(), MagicMock(), tmp_path / "output" / "stage4")
+    with patch("phosp.stages.stage4_analyze.mda.Universe", return_value=MagicMock()), \
+         patch("phosp.stages.stage4_analyze._discover_plugins", return_value={"fake": _CapturePlugin}):
+        stage.run()
+
+    assert captured.get("_timeout_minutes") == 42
+
+
 def test_unknown_plugin_name_raises_analysis_error(tmp_path):
     """A typo in analysis.plugins raises AnalysisError immediately with valid names listed."""
     from phosp.exceptions import AnalysisError

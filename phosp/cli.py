@@ -202,8 +202,12 @@ def predict_sites(
     if cfg.input.path is None:
         typer.echo("Error: predict-sites requires input.source=pdb with a path set", err=True)
         raise typer.Exit(code=1)
+    timeout_minutes = cfg.gromacs.timeout_minutes
     try:
-        results = NetPhos().predict(cfg.input.path, threshold=threshold)
+        results = NetPhos().predict(
+            cfg.input.path, threshold=threshold,
+            timeout=timeout_minutes * 60 if timeout_minutes else None,
+        )
     except RuntimeError as exc:
         typer.echo(f"Error: {exc}", err=True)
         typer.echo("NetPhos is not bundled with phosp. Download it from https://services.healthtech.dtu.dk/software.php and ensure 'netphos' is on your PATH.")

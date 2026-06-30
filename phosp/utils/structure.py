@@ -83,7 +83,8 @@ def clean_structure(
 
 
 def protonate_structure(
-    pdb: Path, output: Path, ph: float = 7.4, pdb2pqr_binary: str = "pdb2pqr"
+    pdb: Path, output: Path, ph: float = 7.4, pdb2pqr_binary: str = "pdb2pqr",
+    timeout: int | None = None,
 ) -> Path:
     pqr_output = output.with_suffix(".pqr")
     cmd = [
@@ -95,7 +96,11 @@ def protonate_structure(
         str(pdb),
         str(pqr_output),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        minutes = timeout // 60 if timeout else "?"
+        raise RuntimeError(f"PDB2PQR timed out after {minutes} minutes")
     if result.returncode != 0:
         raise RuntimeError(f"PDB2PQR failed:\n{result.stderr[-2000:]}")
     return output

@@ -65,10 +65,12 @@ class Stage1Modify(Stage):
         cleaned = clean_structure(raw, out / "cleaned.pdb")
 
         # 3. Protonate
+        timeout_minutes = cfg.gromacs.timeout_minutes
         protonated = protonate_structure(
             cleaned, out / "protonated.pdb",
             ph=cfg.input.ph,
             pdb2pqr_binary=cfg.gromacs.pdb2pqr,
+            timeout=timeout_minutes * 60 if timeout_minutes else None,
         )
 
         if self.reference_mode:

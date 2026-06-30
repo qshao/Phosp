@@ -79,6 +79,8 @@ class Stage4Analyze(Stage):
             plugin_config = getattr(cfg.analysis, plugin_name, {})
             if not isinstance(plugin_config, dict):
                 plugin_config = plugin_config.model_dump() if hasattr(plugin_config, "model_dump") else {}
+            # Lets subprocess-based plugins (e.g. mmpbsa) bound external tool runtime.
+            plugin_config = {**plugin_config, "_timeout_minutes": cfg.gromacs.timeout_minutes}
 
             if self.ui:
                 self.ui.plugin_start(plugin_name)

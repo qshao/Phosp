@@ -1,7 +1,8 @@
+import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
-from phosp.utils.structure import clean_structure, fetch_structure
+from phosp.utils.structure import clean_structure, fetch_structure, protonate_structure
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -30,3 +31,17 @@ def test_fetch_structure_pdb_source_copies_file(tmp_path):
     )
     assert result.exists()
     assert result.name == "input.pdb"
+
+
+def test_protonate_structure_passes_timeout_to_subprocess(tmp_path):
+    with patch("phosp.utils.structure.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        protonate_structure(FIXTURES / "ubiquitin.pdb", tmp_path / "out.pdb", timeout=300)
+    assert mock_run.call_args.kwargs["timeout"] == 300
+
+
+def test_protonate_structure_raises_clear_error_on_timeout(tmp_path):
+    with patch("phosp.utils.structure.subprocess.run",
+               side_effect=subprocess.TimeoutExpired(cmd="pdb2pqr", timeout=300)):
+        with pytest.raises(RuntimeError, match="PDB2PQR timed out"):
+            protonate_structure(FIXTURES / "ubiquitin.pdb", tmp_path / "out.pdb", timeout=300)

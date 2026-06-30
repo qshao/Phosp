@@ -50,7 +50,12 @@ class MMPBSAPlugin(AnalysisPlugin):
             "-o", str(work_dir / "mmpbsa_results.dat"),
             "-eo", str(work_dir / "mmpbsa_energies.csv"),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=work_dir)
+        timeout_minutes = config.get("_timeout_minutes")
+        timeout = timeout_minutes * 60 if timeout_minutes else None
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=work_dir, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"gmx_MMPBSA timed out after {timeout_minutes} minutes")
         if result.returncode != 0:
             raise RuntimeError(f"gmx_MMPBSA failed:\n{result.stderr[-2000:]}")
 

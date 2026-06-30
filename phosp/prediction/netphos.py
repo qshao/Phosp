@@ -35,13 +35,17 @@ def _parse_netphos_output(output: str, threshold: float = 0.5) -> list[dict]:
 
 
 class NetPhos:
-    def predict(self, pdb: Path, threshold: float = 0.5) -> list[dict]:
+    def predict(self, pdb: Path, threshold: float = 0.5, timeout: int | None = None) -> list[dict]:
         exe = shutil.which("netphos") or shutil.which("netphos3.1")
         if not exe:
             raise RuntimeError(
                 "NetPhos not found in PATH. Install NetPhos 3.1 or set PATH correctly."
             )
-        result = subprocess.run([exe, str(pdb)], capture_output=True, text=True)
+        try:
+            result = subprocess.run([exe, str(pdb)], capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            minutes = timeout // 60 if timeout else "?"
+            raise RuntimeError(f"NetPhos timed out after {minutes} minutes")
         if result.returncode != 0:
             raise RuntimeError(f"NetPhos failed:\n{result.stderr[-1000:]}")
         return _parse_netphos_output(result.stdout, threshold=threshold)
