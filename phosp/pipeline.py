@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import logging
 import shutil
 import time
@@ -20,12 +21,24 @@ _DISK_WARN_GB = 10.0
 
 
 class Pipeline:
-    def __init__(self, config: PhospConfig, output_root: Path, ui: PhospUI | None = None) -> None:
+    def __init__(
+        self,
+        config: PhospConfig,
+        output_root: Path,
+        ui: PhospUI | None = None,
+        config_path: Path | None = None,
+    ) -> None:
         self.config = config
         self.output_root = output_root
         self.ui = ui
         self.output_root.mkdir(parents=True, exist_ok=True)
         self.checkpoint = Checkpoint(output_root / "checkpoint.json")
+        self._config_hash: str | None = None
+        if config_path is not None:
+            try:
+                self._config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:16]
+            except OSError:
+                pass
 
     def execute(
         self,
@@ -38,6 +51,14 @@ class Pipeline:
             logger.info("Dry run: would execute stages: %s", ", ".join(stages))
             return
         self._preflight_checks()
+        if self._config_hash:
+            stored = self.checkpoint.get_config_hash()
+            if stored and stored != self._config_hash:
+                logger.warning(
+                    "Config has changed since this run was started. "
+                    "Completed stages used the previous config. "
+                    "Use --start-from stage1 to re-run from scratch."
+                )
         self._clean_orphan_tmpdirs()
         stages = self._resolve_stages(start_from, only_stages)
         for stage_name in stages:
@@ -183,7 +204,7 @@ class Pipeline:
             tmp_dir.rename(final_dir)
             renamed = True
             remapped = self._remap_artifacts(result.artifacts, tmp_dir, final_dir)
-            self.checkpoint.mark_complete(stage_name, remapped)
+            self.checkpoint.mark_complete(stage_name, remapped, config_hash=self._config_hash)
             elapsed = time.monotonic() - start
             if self.ui:
                 self.ui.stage_complete(stage_name, elapsed)

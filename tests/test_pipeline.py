@@ -179,3 +179,26 @@ def test_preflight_checks_pdb2pqr_binary(tmp_path):
          patch("phosp.pipeline.Path.is_file", return_value=False):
         with pytest.raises(PhospError, match="pdb2pqr"):
             p._preflight_checks()
+
+
+def test_config_hash_guard_warns_on_mismatch(tmp_path, caplog):
+    """When config has changed since last run, a warning is logged."""
+    import logging
+    # Simulate prior run that completed stage1 with a different hash
+    p_old = _make_pipeline(tmp_path)
+    p_old.checkpoint.mark_complete("stage1", {}, config_hash="oldhash12345678")
+
+    # New pipeline with config_path — its computed hash won't match "oldhash12345678"
+    yaml_file = FIXTURES / "valid_config.yaml"
+    cfg = load_config(yaml_file)
+    p_new = Pipeline(cfg, output_root=tmp_path / "output", config_path=yaml_file)
+
+    mock_stage = MagicMock()
+    mock_stage.run.return_value = MagicMock(artifacts={})
+
+    with caplog.at_level(logging.WARNING, logger="phosp"), \
+         _patched_gmx(), \
+         patch.object(p_new, "_build_stage", return_value=mock_stage):
+        p_new.execute(only_stages="1")  # stage1 already complete — loop skips it
+
+    assert any("Config has changed" in r.message for r in caplog.records)

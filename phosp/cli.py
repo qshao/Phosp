@@ -119,7 +119,7 @@ def run(
             typer.echo(f"Error: input PDB not found: {cfg.input.path}", err=True)
             raise typer.Exit(code=1)
         output_root = config_path.parent / "output"
-        p = Pipeline(cfg, output_root=output_root)
+        p = Pipeline(cfg, output_root=output_root, config_path=config_path)
         p._preflight_checks()
         p.execute(dry_run=True, start_from=start_from, only_stages=stages)
         estimated_gb = cfg.simulation.production_time_ns * 1.0 + 0.5
@@ -128,7 +128,7 @@ def run(
         return
 
     ui = PhospUI()
-    Pipeline(cfg, output_root=config_path.parent / "output", ui=ui).execute(
+    Pipeline(cfg, output_root=config_path.parent / "output", ui=ui, config_path=config_path).execute(
         start_from=start_from, only_stages=stages
     )
 
