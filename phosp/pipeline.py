@@ -33,11 +33,11 @@ class Pipeline:
         only_stages: str | None = None,
         dry_run: bool = False,
     ) -> None:
-        self._preflight_checks()
         if dry_run:
             stages = self._resolve_stages(start_from, only_stages)
             logger.info("Dry run: would execute stages: %s", ", ".join(stages))
             return
+        self._preflight_checks()
         self._clean_orphan_tmpdirs()
         stages = self._resolve_stages(start_from, only_stages)
         for stage_name in stages:

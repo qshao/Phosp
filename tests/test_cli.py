@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+from unittest.mock import patch
 from typer.testing import CliRunner
 from phosp.cli import app
 
@@ -64,3 +65,25 @@ def test_validate_accepts_valid_config():
     result = runner.invoke(app, ["validate", str(FIXTURES / "valid_config.yaml")])
     assert result.exit_code == 0, result.output
     assert "valid" in result.output.lower()
+
+
+def test_run_dry_run_skips_execution(tmp_path: Path):
+    """Test that dry-run skips preflight checks and does not execute stages."""
+    # Create a config file in tmp_path so output goes to tmp_path/output
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text((FIXTURES / "valid_config.yaml").read_text())
+    out = tmp_path / "output"
+
+    # Patch shutil.which to return None (GROMACS not available)
+    with patch("phosp.pipeline.shutil.which", return_value=None):
+        result = runner.invoke(app, ["run", str(config_path), "--dry-run"])
+
+    # Dry-run should succeed (exit code 0) even without GROMACS
+    assert result.exit_code == 0, result.output
+    assert "Dry run" in result.output or "complete" in result.output
+
+    # Verify no stages were executed (no stage directories created)
+    if out.exists():
+        for stage_num in range(1, 5):
+            stage_dir = out / f"stage{stage_num}"
+            assert not stage_dir.exists(), f"Stage {stage_num} directory should not exist in dry-run mode"

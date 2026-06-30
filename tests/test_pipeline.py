@@ -114,10 +114,14 @@ def test_disk_warning_logged_when_low(tmp_path, caplog):
     cfg.simulation.production_time_ns = 100.0
     p = Pipeline(cfg, output_root=tmp_path / "output")
 
+    mock_stage = MagicMock()
+    mock_stage.run.return_value = MagicMock(artifacts={})
+
     with _patched_gmx(), \
          patch("phosp.pipeline.shutil.disk_usage",
                return_value=MagicMock(free=1 * 1024 ** 3)), \
+         patch.object(p, "_build_stage", return_value=mock_stage), \
          caplog.at_level(logging.WARNING, logger="phosp"):
-        p.execute(dry_run=True)
+        p.execute(only_stages="1")
 
     assert any("disk space" in r.message.lower() for r in caplog.records)
