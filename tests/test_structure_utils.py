@@ -1,8 +1,9 @@
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
-from phosp.utils.structure import clean_structure, fetch_structure, protonate_structure
+from phosp.utils.structure import clean_structure, fetch_structure, protonate_structure, _fetch_uniprot
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -38,6 +39,32 @@ def test_protonate_structure_passes_timeout_to_subprocess(tmp_path):
         mock_run.return_value = MagicMock(returncode=0)
         protonate_structure(FIXTURES / "ubiquitin.pdb", tmp_path / "out.pdb", timeout=300)
     assert mock_run.call_args.kwargs["timeout"] == 300
+
+
+def test_fetch_uniprot_uses_pdburl_from_alphafold_api(tmp_path):
+    """AlphaFold periodically bumps model versions (e.g. v4 -> v6), which
+    breaks a hardcoded URL. _fetch_uniprot must ask the prediction API for
+    the current pdbUrl instead of guessing a version number."""
+    api_response = json.dumps(
+        [{"pdbUrl": "https://alphafold.ebi.ac.uk/files/AF-O43175-F1-model_v6.pdb"}]
+    ).encode()
+    dest = tmp_path / "input.pdb"
+    with patch("phosp.utils.structure.urlopen") as mock_urlopen, \
+         patch("phosp.utils.structure.urlretrieve") as mock_urlretrieve:
+        mock_urlopen.return_value.__enter__.return_value.read.return_value = api_response
+        _fetch_uniprot("O43175", dest)
+    mock_urlretrieve.assert_called_once_with(
+        "https://alphafold.ebi.ac.uk/files/AF-O43175-F1-model_v6.pdb", dest
+    )
+
+
+def test_fetch_uniprot_falls_back_to_rcsb_on_api_failure(tmp_path):
+    dest = tmp_path / "input.pdb"
+    with patch("phosp.utils.structure.urlopen", side_effect=OSError("network down")), \
+         patch("phosp.utils.structure._fetch_rcsb_by_uniprot", return_value=dest) as mock_rcsb:
+        result = _fetch_uniprot("O43175", dest)
+    mock_rcsb.assert_called_once_with("O43175", dest)
+    assert result == dest
 
 
 def test_protonate_structure_raises_clear_error_on_timeout(tmp_path):

@@ -40,10 +40,16 @@ def fetch_structure(
 
 
 def _fetch_uniprot(uniprot_id: str, dest: Path) -> Path:
-    af_url = f"https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-model_v4.pdb"
+    # AlphaFold periodically re-predicts entries under a new model version
+    # (e.g. v4 -> v6), so the download URL is looked up via the prediction
+    # API rather than a hardcoded version number.
     try:
         logger.info("Fetching AlphaFold structure for %s", uniprot_id)
-        urlretrieve(af_url, dest)
+        api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{uniprot_id}"
+        with urlopen(api_url) as resp:
+            data = json.loads(resp.read())
+        pdb_url = data[0]["pdbUrl"]
+        urlretrieve(pdb_url, dest)
         return dest
     except Exception:
         logger.warning("AlphaFold fetch failed; trying RCSB for %s", uniprot_id)
