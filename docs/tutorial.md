@@ -2,7 +2,7 @@
 
 This tutorial walks through a complete phosp run from a fresh environment to an HTML analysis report. We use ubiquitin (a small 76-residue protein, PDB: 1UBQ) with phosphorylation at Thr66 as a concrete example. The same steps apply to any protein and any combination of phospho-sites.
 
-Estimated time: 10 minutes to set up, 1–2 hours for a 10 ns production run (on a laptop CPU).
+Estimated time: 10 minutes to set up. MD run time varies enormously by hardware and system size — a 10 ns production run can take anywhere from ~20 minutes (GPU) to well over a day (CPU-only, larger protein). GROMACS needs a CUDA or ROCm build to use an NVIDIA/AMD GPU; some platforms (e.g. conda-forge's linux-aarch64 GROMACS) only ship an OpenCL build, which silently falls back to CPU-only on GPUs it doesn't support — check your `mdrun` log for a line like `status: incompatible` under "GPU support" if a run seems unexpectedly slow.
 
 ---
 
@@ -199,15 +199,15 @@ output/stage2/
 └── prep_report.json    # summary of system preparation
 ```
 
-### Stage 3 — MD simulation (1–2 hours for 10 ns)
+### Stage 3 — MD simulation (time varies by hardware — see the note at the top of this tutorial)
 
 Runs four sequential GROMACS phases:
 
 | Phase | Purpose | Default length |
 |---|---|---|
 | Minimization | Remove clashes, reach a local energy minimum | 50,000 steps (~steepest descent) |
-| NVT equilibration | Stabilise temperature at 300 K | 50 ns |
-| NPT equilibration | Stabilise pressure at 1 bar | 50 ns |
+| NVT equilibration | Stabilise temperature at 300 K | 500 ps |
+| NPT equilibration | Stabilise pressure at 1 bar | 500 ps |
 | Production | Collect statistics | Set by `production_time_ns` |
 
 Each phase writes trajectory files to `output/stage3/<phase>/`.
@@ -330,16 +330,17 @@ Shows the fraction of residues in α-helix and β-sheet over time. A stable traj
 
 ## 9. Running a comparison
 
-A common use case is comparing the phosphorylated protein against the wild-type. Run phosp twice with different configs:
+A common use case is comparing the phosphorylated protein against the wild-type. Use the `--reference` flag to run the same config's unmodified protein through the identical pipeline — no second config file needed:
 
 ```bash
-# Run 1: phosphorylated
-phosp run config_phospho.yaml   # output to config_phospho.yaml/../output/
+# Run 1: phosphorylated (as configured in modification.sites)
+phosp run config.yaml                # output → output/
 
-# Run 2: unmodified (no sites in modification block)
-# In config_wt.yaml set modification.sites: []
-phosp run config_wt.yaml
+# Run 2: unmodified — skips phosphorylation, same protocol otherwise
+phosp run config.yaml --reference    # output → output_reference/
 ```
+
+Both runs share the same config, so the protocol, box, water model, and analysis plugins stay identical — only the phospho-modification step differs. Each writes to its own output directory (`output/` vs `output_reference/`) and tracks its own checkpoint, so you can resume either independently.
 
 Then load both trajectories in MDAnalysis or VMD for direct comparison. The CSV files from stage4 are easy to import into Python for custom plotting:
 
@@ -347,8 +348,8 @@ Then load both trajectories in MDAnalysis or VMD for direct comparison. The CSV 
 import pandas as pd
 import matplotlib.pyplot as plt
 
-rmsd_p = pd.read_csv("phospho/output/stage4/rmsd.csv")
-rmsd_wt = pd.read_csv("wt/output/stage4/rmsd.csv")
+rmsd_p = pd.read_csv("output/stage4/rmsd.csv")
+rmsd_wt = pd.read_csv("output_reference/stage4/rmsd.csv")
 
 fig, ax = plt.subplots()
 ax.plot(rmsd_p["time_ps"] / 1000, rmsd_p["rmsd_angstrom"], label="pThr66")
@@ -410,7 +411,7 @@ modification:
 
 ## 12. Longer simulations on a workstation
 
-A production-quality simulation for a globular protein is typically 100–500 ns. For a 76-residue protein on a GPU workstation, expect:
+A production-quality simulation for a globular protein is typically 100–500 ns. For a small (~76-residue) protein on a capable GPU workstation, expect roughly:
 
 | Duration | Approximate wall-clock time |
 |---|---|
@@ -418,7 +419,9 @@ A production-quality simulation for a globular protein is typically 100–500 ns
 | 100 ns | 10–20 h (CPU) · 1–3 h (GPU) |
 | 500 ns | 50–100 h (CPU) · 5–15 h (GPU) |
 
-To use a GPU, GROMACS must be compiled with GPU support (or installed via conda with GPU enabled). Set `gpu_id: 0` in the config to pin to a specific GPU, or leave it as `~` to let GROMACS auto-select.
+These numbers scale up substantially for larger proteins (roughly with total atom count, including solvent) — a ~500-residue protein can easily be 5-10x slower than this table on the same hardware. Confirm your `gmx mdrun` log actually reports GPU use with real performance numbers (`Performance: X ns/day`) before trusting a GPU estimate; see the note at the top of this tutorial about builds that silently fall back to CPU.
+
+To use a GPU, GROMACS must be compiled with GPU support matching your hardware (CUDA for NVIDIA, ROCm/HIP for AMD — not every OpenCL build supports every GPU generation), or installed via conda with GPU enabled. Set `gpu_id: 0` in the config to pin to a specific GPU, or leave it as `~` to let GROMACS auto-select.
 
 ---
 
@@ -514,7 +517,9 @@ phosp run config.yaml                      # run full pipeline (or resume)
 phosp run config.yaml --dry-run            # estimate disk, check tools, no execution
 phosp run config.yaml --stages 1,2        # run specific stages
 phosp run config.yaml --start-from stage3  # force-resume from a stage
-phosp status output/                       # show which stages are complete
+phosp run config.yaml --reference          # run unmodified protein → output_reference/
+phosp status output/                       # show which stages are complete, with duration
 phosp report output/                       # regenerate HTML report
 phosp predict-sites config.yaml            # predict phospho sites (needs NetPhos)
+phosp clean output/                        # remove an output dir + checkpoint (with confirmation)
 ```

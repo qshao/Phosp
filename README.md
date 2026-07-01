@@ -222,7 +222,7 @@ input:
   ph: 7.4                 # pH for protonation state assignment (pdb2pqr / PROPKA)
 ```
 
-When `source: uniprot`, phosp first tries AlphaFold (model v4). If not found, it queries RCSB Search and downloads the top experimental structure.
+When `source: uniprot`, phosp queries the AlphaFold prediction API for the current model version (AlphaFold periodically re-predicts entries under a new version, so this is looked up dynamically rather than hardcoded). If AlphaFold has no entry, it queries RCSB Search and downloads the top experimental structure instead.
 
 ### `modification` block
 
@@ -247,7 +247,10 @@ forcefield: charmm36m     # only supported option; amber_ff14sb is not yet avail
 
 ```yaml
 gromacs:
-  binary: gmx             # binary name or full path, e.g. "gmx_mpi" or "/opt/gromacs/bin/gmx"
+  binary: gmx              # binary name or full path, e.g. "gmx_mpi" or "/opt/gromacs/bin/gmx"
+  pdb2pqr: pdb2pqr         # binary name or full path; useful for non-PATH installations
+  timeout_minutes: ~       # hard cap per GROMACS/pdb2pqr/NetPhos/gmx_MMPBSA subprocess call;
+                           # ~ = no limit (default); e.g. 120 for a 2-hour cap
 ```
 
 ### `protocol`
@@ -347,6 +350,11 @@ phosp run <config>
   --dry-run               Validate config + check tools, print disk estimate, exit
   --log-level INFO        DEBUG | INFO | WARNING | ERROR (default: INFO)
   --log-file run.log      Write structured log to this file in addition to stdout
+  --reference              Run the unmodified protein instead of applying
+                           modification.sites — skips phosphorylation, uses
+                           the same protocol. Output goes to
+                           <config-dir>/output_reference/ so it coexists
+                           with a normal run for direct comparison.
 
 phosp validate <config>
   Parse config, check GROMACS binary, pdb2pqr, and CHARMM36m installation.
@@ -358,14 +366,20 @@ phosp predict-sites <config>
   --threshold 0.5         Minimum confidence score (0–1)
 
 phosp status <output-dir>
-  Show a table of completed stages, timestamps, and key artifacts.
-  output-dir is usually <config-dir>/output/.
+  Show a table of completed stages, timestamps, key artifacts, and
+  per-stage duration. output-dir is usually <config-dir>/output/ (or
+  output_reference/ for a --reference run).
 
 phosp report <output-dir>
   Regenerate the HTML report from existing stage4 results without re-running analysis.
 
 phosp init [path]
   Write a starter config YAML to the given path (default: phosp_config.yaml).
+
+phosp clean <output-dir>
+  Remove a pipeline output directory (and its checkpoint) after a
+  confirmation prompt. Use this to force a clean re-run instead of
+  resuming from checkpoint.
 
 phosp --version
   Print the installed version and exit.
@@ -383,6 +397,17 @@ phosp run my_run/config.yaml --start-from stage3
 # Run only stages 1 and 2 (e.g. to prepare a system before editing the protocol)
 phosp run my_run/config.yaml --stages 1,2
 ```
+
+### Reference (wild-type) comparison runs
+
+```bash
+# Runs the same config's unmodified protein through the identical pipeline,
+# skipping the phospho-modification step. Writes to output_reference/, so it
+# coexists with a normal --reference-less run of the same config.
+phosp run my_run/config.yaml --reference
+```
+
+Compare the two runs' `stage4/*.csv` outputs directly — see [Running a comparison](docs/tutorial.md#9-running-a-comparison) in the tutorial for an example.
 
 ---
 
@@ -421,13 +446,13 @@ minimization:
 
 nvt:
   dt: 0.002          # ps (2 fs time step)
-  nsteps: 25000000   # 50 ns equilibration
+  nsteps: 250000     # 500 ps equilibration
   tcoupl: V-rescale
   ref_t: "300 300"   # K — protein + solvent coupling groups
 
 npt:
   dt: 0.002
-  nsteps: 25000000
+  nsteps: 250000     # 500 ps equilibration
   pcoupl: Parrinello-Rahman
   ref_p: 1.0         # bar
 
@@ -541,6 +566,12 @@ This is an orphaned temp dir. phosp cleans it automatically on the next run. If 
 rm -rf my_run/output/.stage3_tmp
 ```
 
+**Want to force a completely clean re-run instead of resuming from checkpoint**
+```bash
+phosp clean my_run/output/
+phosp run my_run/config.yaml
+```
+
 **`production.xtc not found — HPC job is still running`**
 The stage 3 SLURM/PBS job hasn't completed yet. Check with `squeue` or `qstat`, then re-run `phosp run` after the job finishes.
 
@@ -559,7 +590,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-104 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+149 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 

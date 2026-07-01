@@ -100,7 +100,7 @@ deactivate
 
 ### Via conda (easiest)
 
-If you created a conda environment as above, install GROMACS from conda-forge. This gives you a CPU-only build by default; GPU support requires CUDA to already be installed on the host.
+If you created a conda environment as above, install GROMACS from conda-forge.
 
 ```bash
 conda install -c conda-forge gromacs -y
@@ -111,6 +111,12 @@ Verify:
 ```bash
 gmx --version
 ```
+
+**GPU support caveat:** `gmx --version` prints a "GPU support" line — check it before assuming your run will use the GPU. conda-forge's GROMACS ships with different GPU backends depending on platform, and the backend has to match your hardware:
+
+- On **linux-64**, conda-forge provides a CUDA-enabled build for NVIDIA GPUs.
+- On **linux-aarch64** (ARM64, e.g. Jetson, Grace-Blackwell-class systems), conda-forge currently ships an **OpenCL** build only — there is no CUDA variant. OpenCL does not support newer NVIDIA GPU generations (Volta and later); `gmx mdrun` will silently fall back to CPU-only and run 10-50x slower with no error, only a line in the log like `status: incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)`. Confirm actual GPU use by checking for a `Performance: X ns/day` line with realistic throughput in the `mdrun` log, not just that the run started.
+- Getting real GPU acceleration in that situation means compiling GROMACS from source with `-DGMX_GPU=CUDA` (see below) — it needs the CUDA toolkit installed and takes 10–30 minutes.
 
 ### Via package manager
 
@@ -317,7 +323,7 @@ Then run the test suite to confirm the Python layer is intact:
 
 ```bash
 pytest
-# 104 passed
+# 149 passed
 ```
 
 ---
