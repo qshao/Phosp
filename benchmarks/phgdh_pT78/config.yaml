@@ -1,0 +1,45 @@
+# phosp benchmark — Human PHGDH (UniProt O43175), pT78
+# run `phosp validate` to check it, then `phosp run` (add --reference for the WT comparison run)
+
+input:
+  source: uniprot
+  uniprot_id: O43175   # Human PHGDH (D-3-phosphoglycerate dehydrogenase)
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 78
+      resname: THR
+      phospho_type: pThr
+
+forcefield: charmm36m
+protocol: globular_protein
+
+gromacs:
+  binary: gmx
+
+simulation:
+  production_time_ns: 1.0
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  gpu_id: ~
+  runner: local
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+    - secondary_structure
+    - hbond
+    - contacts
+    - sasa
+  rmsd:
+    selection: name CA
+  rmsf:
+    selection: name CA
+  sasa:
+    residues: [78]   # phosphosite-only SASA: solvent exposure of pT78/T78 over time

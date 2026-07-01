@@ -40,6 +40,6 @@ analysis:
     - rmsf
     - radius_of_gyration
   rmsd:
-    selection: backbone
+    selection: name CA
   rmsf:
     selection: name CA

@@ -13,7 +13,7 @@ class RMSDPlugin(AnalysisPlugin):
     name = "rmsd"
 
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
-        selection = config.get("selection", "backbone")
+        selection = config.get("selection", "name CA")
         universe.trajectory[0]  # reset to frame 0 so copy() captures it as reference
         reference = universe.copy()
         R = rms.RMSD(universe, reference, select=selection)
@@ -29,6 +29,6 @@ class RMSDPlugin(AnalysisPlugin):
         ax.plot(result["time_ps"] / 1000, result["rmsd_angstrom"])
         ax.set_xlabel("Time (ns)")
         ax.set_ylabel("RMSD (Å)")
-        ax.set_title("Backbone RMSD")
+        ax.set_title("Cα RMSD")
         fig.tight_layout()
         return fig

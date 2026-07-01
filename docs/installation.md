@@ -330,7 +330,7 @@ Then run the test suite to confirm the Python layer is intact:
 
 ```bash
 pytest
-# 159 passed
+# 162 passed
 ```
 
 ---

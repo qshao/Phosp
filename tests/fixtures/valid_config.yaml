@@ -25,7 +25,7 @@ simulation:
 analysis:
   plugins: [rmsd, rmsf]
   rmsd:
-    selection: backbone
+    selection: name CA
     reference: first_frame
   rmsf:
     selection: "name CA"

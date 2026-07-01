@@ -347,7 +347,7 @@ analysis:
     # - mmpbsa          # requires gmx_MMPBSA (pip install gmx_MMPBSA)
 
   rmsd:
-    selection: backbone             # MDAnalysis atom selection string
+    selection: name CA              # MDAnalysis atom selection string (CA-only is the project default)
   rmsf:
     selection: name CA
   sasa:
@@ -441,7 +441,7 @@ All plugins produce a CSV file and a PNG plot, collected into the HTML report.
 
 | Plugin | Config key | Output | Notes |
 |---|---|---|---|
-| `rmsd` | `rmsd.selection` | RMSD vs. time | default selection: `backbone` |
+| `rmsd` | `rmsd.selection` | RMSD vs. time | default selection: `name CA` |
 | `rmsf` | `rmsf.selection` | Per-residue RMSF | default: `name CA` |
 | `radius_of_gyration` | — | Rg vs. time | |
 | `secondary_structure` | — | Helix / sheet fraction vs. time | |
@@ -636,7 +636,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-161 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+162 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 

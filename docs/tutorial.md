@@ -108,7 +108,7 @@ analysis:
     - hbond
     - sasa
   rmsd:
-    selection: backbone
+    selection: name CA
   rmsf:
     selection: name CA
   sasa:

@@ -23,6 +23,18 @@ def test_rmsd_plugin_returns_dataframe(universe):
     assert len(df) == len(universe.trajectory)
 
 
+def test_rmsd_plugin_defaults_to_ca_only(universe):
+    """Project default is CA-only RMSD, not the full backbone (N, CA, C, O)."""
+    import numpy as np
+    from unittest.mock import patch
+    plugin = RMSDPlugin()
+    with patch("phosp.plugins.analysis.rmsd.rms.RMSD") as mock_rmsd:
+        mock_rmsd.return_value.run.return_value = mock_rmsd.return_value
+        mock_rmsd.return_value.results.rmsd = np.zeros((len(universe.trajectory), 3))
+        plugin.run(universe, {})
+    assert mock_rmsd.call_args.kwargs["select"] == "name CA"
+
+
 def test_rmsf_plugin_returns_per_residue(universe):
     plugin = RMSFPlugin()
     df = plugin.run(universe, {"selection": "name CA"})
