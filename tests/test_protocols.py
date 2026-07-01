@@ -32,7 +32,8 @@ def test_render_nvt_mdp(tmp_path):
     mdp = p.render_mdp("nvt", tmp_path)
     content = mdp.read_text()
     assert "V-rescale" in content
-    assert "25000000" in content  # 50 ns at 2 fs timestep
+    nsteps_line = next(l for l in content.splitlines() if l.strip().startswith("nsteps"))
+    assert nsteps_line.split("=")[1].strip() == "250000"  # 500 ps at 2 fs timestep
 
 
 def test_render_production_mdp_uses_sim_config(tmp_path):
