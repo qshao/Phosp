@@ -30,7 +30,12 @@ class Pipeline:
         reference_mode: bool = False,
     ) -> None:
         self.config = config
-        self.output_root = output_root
+        # GROMACS stage commands run with cwd=<stage dir> while also passing
+        # <stage dir>-relative path arguments; a relative output_root would
+        # make the subprocess re-resolve those arguments against its new cwd
+        # and double-nest the path. Resolve once, here, so every derived
+        # stage directory downstream is already absolute.
+        self.output_root = Path(output_root).resolve()
         self.ui = ui
         self.reference_mode = reference_mode
         self.output_root.mkdir(parents=True, exist_ok=True)

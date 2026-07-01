@@ -24,6 +24,20 @@ def test_pipeline_creates_output_dir(tmp_path):
     assert (tmp_path / "output").exists()
 
 
+def test_output_root_resolved_to_absolute(tmp_path, monkeypatch):
+    """A relative output_root (as produced by `phosp run <relative-config>`)
+    must be resolved to absolute. GROMACS stage commands run with
+    cwd=output_dir while also passing output_dir-relative path arguments
+    (e.g. "-p", str(output_dir / "topol.top")); if output_dir is relative,
+    the subprocess re-resolves that argument against its new cwd and
+    double-nests the path, breaking every real (non-tmp_path) CLI run."""
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config(FIXTURES / "valid_config.yaml")
+    p = Pipeline(cfg, output_root=Path("output"))
+    assert p.output_root.is_absolute()
+    assert p.output_root == (tmp_path / "output").resolve()
+
+
 def test_pipeline_skips_completed_stages(tmp_path):
     p = _make_pipeline(tmp_path)
     p.checkpoint.mark_complete("stage1", {"modified_pdb": "fake.pdb"})
