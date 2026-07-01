@@ -118,7 +118,12 @@ gmx --version
 - On **linux-aarch64** (ARM64, e.g. Jetson, Grace-Blackwell-class systems), conda-forge currently ships an **OpenCL** build only — there is no CUDA variant. OpenCL does not support newer NVIDIA GPU generations (Volta and later); `gmx mdrun` will silently fall back to CPU-only and run 10-50x slower with no error, only a line in the log like `status: incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)`. Confirm actual GPU use by checking for a `Performance: X ns/day` line with realistic throughput in the `mdrun` log, not just that the run started.
 - Getting real GPU acceleration in that situation means compiling GROMACS from source with `-DGMX_GPU=CUDA` (see below) — it needs the CUDA toolkit installed and takes 10–30 minutes.
 
-**Getting phosp to actually use the GPU:** set `simulation.gpu_id` in your config (e.g. `0`) rather than leaving it `~`/unset. phosp only adds the `-nb gpu -pme gpu -bonded gpu -update gpu` offload flags to `mdrun` when `gpu_id` is explicitly set, so a run with `gpu_id: ~` still works but under-uses a fast GPU (only nonbonded work is offloaded; PME, bonded terms, and the integrator/constraint update stay on CPU). See the "Using a datacenter GPU" note in the [README](../README.md#simulation-block) for details, including how to target a specific GPU on a multi-GPU node.
+**Getting phosp to actually use the GPU:** this depends on `simulation.runner`:
+
+- Running locally (`runner: local`): set `simulation.gpu_id` (e.g. `0`) explicitly. phosp only adds the `-nb gpu -pme gpu -bonded gpu -update gpu` offload flags to `mdrun` when `gpu_id` is set, so a run with `gpu_id: ~` still works but under-uses a fast GPU (only nonbonded work is offloaded; PME, bonded terms, and the integrator/constraint update stay on CPU).
+- Running on a cluster (`runner: slurm` or `runner: pbs`): leave `gpu_id: ~` — you can't know which GPU/node SLURM or PBS will assign until the job starts — and set `hpc.gpus: 1` instead (the default). The offload flags are added automatically whenever a GPU is requested (`hpc.gpus > 0`), so whatever device the scheduler hands you gets fully used, no device index required.
+
+See the "Using a datacenter GPU" note in the [README](../README.md#simulation-block) for full detail, and the [HPC environments](#hpc-environments) section below for setting up phosp on a cluster where GROMACS/CUDA come from environment modules or a fixed install path.
 
 ### Via package manager
 
@@ -416,6 +421,41 @@ phosp run my_run/config.yaml --stages 4
 ```
 
 The GROMACS module does not need to be loaded for stage 4 — MDAnalysis reads the trajectory directly.
+
+### GPU nodes: CUDA via module, GROMACS at a fixed path
+
+A common cluster setup: CUDA is provided as an environment module, but GROMACS itself was compiled to a fixed install path rather than exposed as its own module — and you won't know which node or GPU SLURM/PBS assigns until the job actually starts. None of that requires special handling; it's already the normal case for this pipeline:
+
+**Python virtual environment** — same as any HPC setup, on the login node:
+
+```bash
+module load python/3.12
+python -m venv ~/envs/phosp
+source ~/envs/phosp/bin/activate
+pip install -e /path/to/Phosp
+```
+
+You do not need conda or a GROMACS package inside this venv — GROMACS at runtime comes from whatever `gromacs.binary` and `hpc.gromacs_module` you configure below, resolved on the compute node when the job runs, not on the login node.
+
+**Config** — point `gromacs.binary` at the fixed install path, and use `hpc.gromacs_module` to load only the CUDA module (space-separate multiple module names if you need more than one):
+
+```yaml
+gromacs:
+  binary: /shared/apps/gromacs-2026-cuda/bin/gmx_mpi
+
+simulation:
+  gpu_id: ~                 # leave unset — the assigned GPU's index isn't known in advance
+  runner: slurm
+  hpc:
+    ntasks: 32
+    gpus: 1                 # requesting >0 GPUs is what triggers full GPU offload flags
+    walltime: "48:00:00"
+    partition: gpu
+    auto_submit: false
+    gromacs_module: "cuda/12.4"   # only CUDA needs to come from the module system here
+```
+
+Because `gromacs.binary` is an absolute path, the generated job script invokes it directly — it doesn't need to be on `$PATH` or exposed as its own module. `hpc.gpus: 1` is what causes phosp to add the full offload flags (`-nb gpu -pme gpu -bonded gpu -update gpu`) to `mdrun`; this doesn't depend on knowing which physical GPU or node the scheduler assigns, since SLURM/PBS scope GPU visibility to the job regardless. Run the same three-step workflow above (stages 1-2 on the login node, stage 3 to submit, stage 4 after completion) — see the [HPC usage](../README.md#hpc-usage-slurm--pbs) section of the README for the full walkthrough.
 
 ### Identifying the correct binary name
 

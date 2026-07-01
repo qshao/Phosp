@@ -423,6 +423,8 @@ These numbers scale up substantially for larger proteins (roughly with total ato
 
 To use a GPU, GROMACS must be compiled with GPU support matching your hardware (CUDA for NVIDIA, ROCm/HIP for AMD — not every OpenCL build supports every GPU generation), or installed via conda with GPU enabled. Set `gpu_id: 0` (or another device index) in the config to pin to a specific GPU — phosp then also adds `-nb gpu -pme gpu -bonded gpu -update gpu` to `mdrun`, offloading nonbonded, PME, bonded, and update/constraint work, which is what actually saturates a datacenter GPU like an A100/H100/H200. Leaving `gpu_id: ~` still lets GROMACS auto-detect and use a GPU for nonbonded work, but the rest stays on CPU. On a multi-GPU node, each phosp run pins to one GPU (`-ntmpi 1`) — launch separate runs with different `gpu_id` values to use more than one card at once.
 
+This tutorial covers running locally (`runner: local`). If you're on a SLURM/PBS cluster where the scheduler assigns the node and GPU automatically, the rules are different — see [HPC usage](../README.md#hpc-usage-slurm--pbs) in the README: leave `gpu_id: ~` there and set `hpc.gpus: 1` instead, since the offload flags key off "was a GPU requested" rather than a known device index.
+
 ---
 
 ## 13. Running on an HPC cluster

@@ -344,11 +344,29 @@ def test_pbs_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
     assert "-update gpu" in content
 
 
-def test_pbs_script_no_gpu_offload_flags_when_gpu_id_none(tmp_path):
+def test_pbs_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_path):
+    """On SLURM/PBS the scheduler assigns node/GPU at submit time — the config
+    can't know the device index in advance. Requesting a GPU (hpc.gpus > 0)
+    must still get full offload even with gpu_id left unset."""
     engine = GROMACSEngine()
     script = engine.generate_hpc_script(
         scheduler="pbs",
-        resources=_pbs_resources(),
+        resources=_pbs_resources(gpus=1),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    content = script.read_text()
+    assert "-gpu_id" not in content  # no device index known
+    for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
+        assert flag in content
+
+
+def test_pbs_script_no_gpu_offload_flags_when_no_gpus_requested(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(gpus=0),
         phases=["minimization"],
         output_dir=tmp_path,
         gpu_id=None,
@@ -374,11 +392,27 @@ def test_slurm_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
     assert "-update gpu" in content
 
 
-def test_slurm_script_no_gpu_offload_flags_when_gpu_id_none(tmp_path):
+def test_slurm_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_path):
+    """Same SLURM-assigned-node/GPU scenario as the PBS test above."""
     engine = GROMACSEngine()
     script = engine.generate_hpc_script(
         scheduler="slurm",
-        resources=_slurm_resources(),
+        resources=_slurm_resources(gpus=1),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    content = script.read_text()
+    assert "-gpu_id" not in content
+    for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
+        assert flag in content
+
+
+def test_slurm_script_no_gpu_offload_flags_when_no_gpus_requested(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(gpus=0),
         phases=["minimization"],
         output_dir=tmp_path,
         gpu_id=None,

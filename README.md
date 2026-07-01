@@ -305,19 +305,27 @@ simulation:
     #   - "--mem=128G"
 ```
 
-**Using a datacenter GPU (A100 / H100 / H200):** set `gpu_id` (e.g. `0`) rather
-than leaving it `~`. phosp only adds `-nb gpu -pme gpu -bonded gpu -update gpu`
-to the `mdrun` command when `gpu_id` is explicitly set — this offloads
-nonbonded, PME, bonded, and constraint/update work to the GPU, which is what
-actually saturates a fast card. Leaving `gpu_id: ~` still lets GROMACS
-auto-detect and use a GPU for nonbonded work, but PME/bonded/update stay on
-the CPU, which underuses an A100/H100/H200. Each phosp run currently pins to
-a single GPU (`-ntmpi 1`); on a multi-GPU node, run separate phosp jobs with
-different `gpu_id` values to use more than one card, or set
-`CUDA_VISIBLE_DEVICES` to restrict which GPU each job can see. Confirm actual
-GPU use by checking `<phase>.log` in the stage3 output for a `Using GPU`
-line and a `Performance: X ns/day` figure consistent with GPU speed, not just
-that the run started — see the GPU support caveat in
+**Using a datacenter GPU (A100 / H100 / H200):** the flags that saturate a
+fast GPU (`-nb gpu -pme gpu -bonded gpu -update gpu` — offloading nonbonded,
+PME, bonded, and constraint/update work, not just nonbonded) are controlled
+differently depending on `runner`:
+
+- `runner: local` — set `gpu_id` (e.g. `0`) explicitly. phosp only adds the
+  offload flags when `gpu_id` is set, since with `local` there's no other
+  signal that a GPU should be used; leaving `gpu_id: ~` runs GROMACS with
+  its own defaults (GPU auto-detected for nonbonded only, PME/bonded/update
+  on CPU).
+- `runner: slurm` / `runner: pbs` — leave `gpu_id: ~` (you don't know the
+  device index until the scheduler assigns a node) and instead set
+  `hpc.gpus: 1` (the default). The offload flags are added whenever a GPU is
+  requested via `hpc.gpus > 0`, independent of `gpu_id` — see the
+  [HPC usage](#hpc-usage-slurm--pbs) section below.
+
+Each phosp run currently pins to a single GPU (`-ntmpi 1`); for multiple GPUs
+run separate phosp jobs. Confirm actual GPU use by checking `<phase>.log` in
+the stage3 output for a `Using GPU` line and a `Performance: X ns/day` figure
+consistent with GPU speed, not just that the run started — see the GPU
+support caveat in
 [docs/installation.md](docs/installation.md#via-conda-easiest) for the
 aarch64/OpenCL pitfall this guards against.
 
@@ -501,6 +509,8 @@ Set `runner: slurm` (or `runner: pbs`) in the config. Stage 3 generates a job sc
 ```yaml
 gromacs:
   binary: gmx_mpi            # MPI-enabled binary common on HPC clusters
+  # binary: /shared/apps/gromacs-2026-cuda/bin/gmx_mpi   # or an absolute path if
+  # GROMACS is installed to a fixed location rather than exposed as a module
 
 simulation:
   runner: slurm
@@ -511,12 +521,32 @@ simulation:
     partition: gpu
     auto_submit: false        # set true to submit automatically
     gromacs_module: gromacs/2026.0-cuda   # adjust to match your cluster's module name
+    # gromacs_module: "cuda/12.4 gromacs/2026.0-cuda"   # space-separated: loads both
+    # the CUDA toolkit module and the GROMACS module in one `module load` line —
+    # use this when GROMACS itself is a fixed-path install (set via `gromacs.binary`
+    # above) and only CUDA needs to come from the module system.
     extra_directives:         # any additional SLURM options your cluster requires
       - "--account=myproject"
       - "--qos=high"
       - "--constraint=a100"
       - "--mem=128G"
 ```
+
+**You don't need to know which node or GPU SLURM/PBS will assign.** Leave
+`simulation.gpu_id: ~` (the default) — phosp never hardcodes a GPU device
+index in the generated job script unless you explicitly set one. As long as
+`hpc.gpus` is at least 1 (the default), the script still requests a GPU via
+`--gres=gpu:N` / `gpus=N` and adds the full offload flags
+(`-nb gpu -pme gpu -bonded gpu -update gpu`) to `mdrun`, so whatever GPU the
+scheduler hands you at runtime (A100, H100, H200, or otherwise) gets fully
+used — GROMACS auto-detects the device(s) SLURM/PBS made visible to the job.
+Only set `gpu_id` explicitly if you need to pin to a specific device index
+among several visible to one job (uncommon — SLURM/PBS typically restrict
+visibility to just the allocated GPU(s) already). To set up the Python
+environment for this on a cluster where GROMACS comes from a module or a
+fixed install path (not conda), see the
+[HPC environments](docs/installation.md#hpc-environments) section of the
+installation guide.
 
 ### Workflow
 
@@ -606,7 +636,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-159 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+161 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 
