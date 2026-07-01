@@ -288,7 +288,7 @@ simulation:
   water_model: tip3p              # "tip3p" or "spce"
   box_type: dodecahedron          # "dodecahedron" or "cubic"
   salt_concentration_mM: 150.0    # NaCl concentration
-  gpu_id: ~                       # GPU index (0, 1, …); ~ = GROMACS auto-selects
+  gpu_id: ~                       # GPU index (0, 1, …); ~ = no explicit pinning/offload tuning
   runner: local                   # "local", "slurm", or "pbs" — see HPC section
 
   hpc:                            # only used when runner is slurm or pbs
@@ -304,6 +304,22 @@ simulation:
     #   - "--constraint=a100"
     #   - "--mem=128G"
 ```
+
+**Using a datacenter GPU (A100 / H100 / H200):** set `gpu_id` (e.g. `0`) rather
+than leaving it `~`. phosp only adds `-nb gpu -pme gpu -bonded gpu -update gpu`
+to the `mdrun` command when `gpu_id` is explicitly set — this offloads
+nonbonded, PME, bonded, and constraint/update work to the GPU, which is what
+actually saturates a fast card. Leaving `gpu_id: ~` still lets GROMACS
+auto-detect and use a GPU for nonbonded work, but PME/bonded/update stay on
+the CPU, which underuses an A100/H100/H200. Each phosp run currently pins to
+a single GPU (`-ntmpi 1`); on a multi-GPU node, run separate phosp jobs with
+different `gpu_id` values to use more than one card, or set
+`CUDA_VISIBLE_DEVICES` to restrict which GPU each job can see. Confirm actual
+GPU use by checking `<phase>.log` in the stage3 output for a `Using GPU`
+line and a `Performance: X ns/day` figure consistent with GPU speed, not just
+that the run started — see the GPU support caveat in
+[docs/installation.md](docs/installation.md#via-conda-easiest) for the
+aarch64/OpenCL pitfall this guards against.
 
 ### `analysis` block
 
@@ -590,7 +606,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-149 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+159 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 

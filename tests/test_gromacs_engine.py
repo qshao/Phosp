@@ -94,6 +94,52 @@ def test_run_phase_omits_gpu_flag_when_gpu_id_is_none(tmp_path):
     assert "-gpu_id" not in mdrun_call.args[0]
 
 
+def test_run_phase_offloads_pme_bonded_update_to_gpu_when_gpu_configured(tmp_path):
+    """A configured GPU (e.g. A100/H100/H200) should also take PME, bonded,
+    and update work, not just nonbonded — otherwise a fast GPU sits mostly idle."""
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "nvt"
+    phase_dir.mkdir()
+    (phase_dir / "nvt.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="nvt",
+            mdp=tmp_path / "nvt.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+            gpu_id=0,
+        )
+    mdrun_args = mock_gmx.call_args_list[1].args[0]
+    assert mdrun_args[mdrun_args.index("-nb") + 1] == "gpu"
+    assert mdrun_args[mdrun_args.index("-pme") + 1] == "gpu"
+    assert mdrun_args[mdrun_args.index("-bonded") + 1] == "gpu"
+    assert mdrun_args[mdrun_args.index("-update") + 1] == "gpu"
+
+
+def test_run_phase_omits_gpu_offload_flags_when_gpu_id_is_none(tmp_path):
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "nvt"
+    phase_dir.mkdir()
+    (phase_dir / "nvt.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="nvt",
+            mdp=tmp_path / "nvt.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+            gpu_id=None,
+        )
+    mdrun_args = mock_gmx.call_args_list[1].args[0]
+    for flag in ("-nb", "-pme", "-bonded", "-update"):
+        assert flag not in mdrun_args
+
+
 def _slurm_resources(**overrides):
     base = {
         "ntasks": 8, "gpus": 1, "walltime": "24:00:00",
@@ -248,6 +294,98 @@ def test_slurm_script_no_extra_directives_by_default(tmp_path):
     for line in sbatch_lines:
         key = line.split()[1].split("=")[0]
         assert key in standard_keys, f"Unexpected #SBATCH directive: {line}"
+
+
+def _pbs_resources(**overrides):
+    base = {
+        "ntasks": 8, "gpus": 1, "walltime": "24:00:00",
+        "partition": "gpu", "gromacs_module": None, "extra_directives": [],
+    }
+    return {**base, **overrides}
+
+
+def test_pbs_script_gpu_id_propagated(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=1,
+    )
+    assert "-gpu_id 1" in script.read_text()
+
+
+def test_pbs_script_no_gpu_id_when_none(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    assert "-gpu_id" not in script.read_text()
+
+
+def test_pbs_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=0,
+    )
+    content = script.read_text()
+    assert "-nb gpu" in content
+    assert "-pme gpu" in content
+    assert "-bonded gpu" in content
+    assert "-update gpu" in content
+
+
+def test_pbs_script_no_gpu_offload_flags_when_gpu_id_none(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    content = script.read_text()
+    for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
+        assert flag not in content
+
+
+def test_slurm_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=0,
+    )
+    content = script.read_text()
+    assert "-nb gpu" in content
+    assert "-pme gpu" in content
+    assert "-bonded gpu" in content
+    assert "-update gpu" in content
+
+
+def test_slurm_script_no_gpu_offload_flags_when_gpu_id_none(tmp_path):
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=None,
+    )
+    content = script.read_text()
+    for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
+        assert flag not in content
 
 
 def test_run_gmx_raises_simulation_error_on_timeout(tmp_path):

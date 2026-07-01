@@ -37,12 +37,12 @@ echo "=== Running {{ phase }} ==="
 srun -n 1 --cpus-per-task=$SLURM_CPUS_PER_TASK \
     {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
     -ntomp $SLURM_CPUS_PER_TASK \
-    {% if gpu_id is not none %}-gpu_id {{ gpu_id }}{% endif %}
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} -nb gpu -pme gpu -bonded gpu -update gpu{% endif %}
 
 {% else %}
 {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
     -ntmpi 1 -ntomp $SLURM_CPUS_PER_TASK \
-    {% if gpu_id is not none %}-gpu_id {{ gpu_id }}{% endif %}
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} -nb gpu -pme gpu -bonded gpu -update gpu{% endif %}
 
 {% endif %}
 {% endfor %}

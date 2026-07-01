@@ -35,6 +35,7 @@ class PBSRunner(SimulationRunner):
             phases=phases,
             output_dir=output_dir,
             work_dir=work_dir,
+            gpu_id=gpu_id,
         )
 
         job_id: str | None = None

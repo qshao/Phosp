@@ -114,9 +114,11 @@ gmx --version
 
 **GPU support caveat:** `gmx --version` prints a "GPU support" line — check it before assuming your run will use the GPU. conda-forge's GROMACS ships with different GPU backends depending on platform, and the backend has to match your hardware:
 
-- On **linux-64**, conda-forge provides a CUDA-enabled build for NVIDIA GPUs.
+- On **linux-64**, conda-forge provides a CUDA-enabled build for NVIDIA GPUs. This is the normal case for datacenter GPUs like **A100, H100, and H200** — they're always attached to x86-64 (linux-64) hosts, so `conda install -c conda-forge gromacs` on such a node picks up the CUDA build automatically (conda-forge detects the local driver via the `__cuda` virtual package). No special flags needed. After installing, confirm with `gmx --version` — look for `GPU support: CUDA` and a build targeting your GPU's compute capability (A100 = Ampere/sm_80, H100/H200 = Hopper/sm_90; recent GROMACS builds bundle both).
 - On **linux-aarch64** (ARM64, e.g. Jetson, Grace-Blackwell-class systems), conda-forge currently ships an **OpenCL** build only — there is no CUDA variant. OpenCL does not support newer NVIDIA GPU generations (Volta and later); `gmx mdrun` will silently fall back to CPU-only and run 10-50x slower with no error, only a line in the log like `status: incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)`. Confirm actual GPU use by checking for a `Performance: X ns/day` line with realistic throughput in the `mdrun` log, not just that the run started.
 - Getting real GPU acceleration in that situation means compiling GROMACS from source with `-DGMX_GPU=CUDA` (see below) — it needs the CUDA toolkit installed and takes 10–30 minutes.
+
+**Getting phosp to actually use the GPU:** set `simulation.gpu_id` in your config (e.g. `0`) rather than leaving it `~`/unset. phosp only adds the `-nb gpu -pme gpu -bonded gpu -update gpu` offload flags to `mdrun` when `gpu_id` is explicitly set, so a run with `gpu_id: ~` still works but under-uses a fast GPU (only nonbonded work is offloaded; PME, bonded terms, and the integrator/constraint update stay on CPU). See the "Using a datacenter GPU" note in the [README](../README.md#simulation-block) for details, including how to target a specific GPU on a multi-GPU node.
 
 ### Via package manager
 
@@ -323,7 +325,7 @@ Then run the test suite to confirm the Python layer is intact:
 
 ```bash
 pytest
-# 149 passed
+# 159 passed
 ```
 
 ---

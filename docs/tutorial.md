@@ -96,7 +96,7 @@ simulation:
   water_model: tip3p
   box_type: dodecahedron
   salt_concentration_mM: 150.0
-  gpu_id: ~                    # ~ = let GROMACS auto-detect; set to 0, 1 … for explicit GPU
+  gpu_id: ~                    # ~ = nonbonded-only GPU use; set to 0, 1 … for full offload (see below)
   runner: local
 
 analysis:
@@ -421,7 +421,7 @@ A production-quality simulation for a globular protein is typically 100–500 ns
 
 These numbers scale up substantially for larger proteins (roughly with total atom count, including solvent) — a ~500-residue protein can easily be 5-10x slower than this table on the same hardware. Confirm your `gmx mdrun` log actually reports GPU use with real performance numbers (`Performance: X ns/day`) before trusting a GPU estimate; see the note at the top of this tutorial about builds that silently fall back to CPU.
 
-To use a GPU, GROMACS must be compiled with GPU support matching your hardware (CUDA for NVIDIA, ROCm/HIP for AMD — not every OpenCL build supports every GPU generation), or installed via conda with GPU enabled. Set `gpu_id: 0` in the config to pin to a specific GPU, or leave it as `~` to let GROMACS auto-select.
+To use a GPU, GROMACS must be compiled with GPU support matching your hardware (CUDA for NVIDIA, ROCm/HIP for AMD — not every OpenCL build supports every GPU generation), or installed via conda with GPU enabled. Set `gpu_id: 0` (or another device index) in the config to pin to a specific GPU — phosp then also adds `-nb gpu -pme gpu -bonded gpu -update gpu` to `mdrun`, offloading nonbonded, PME, bonded, and update/constraint work, which is what actually saturates a datacenter GPU like an A100/H100/H200. Leaving `gpu_id: ~` still lets GROMACS auto-detect and use a GPU for nonbonded work, but the rest stays on CPU. On a multi-GPU node, each phosp run pins to one GPU (`-ntmpi 1`) — launch separate runs with different `gpu_id` values to use more than one card at once.
 
 ---
 

@@ -138,7 +138,10 @@ class GROMACSEngine(MDEngine):
             "-ntmpi", "1",
         ]
         if gpu_id is not None:
-            mdrun_cmd += ["-gpu_id", str(gpu_id)]
+            mdrun_cmd += [
+                "-gpu_id", str(gpu_id),
+                "-nb", "gpu", "-pme", "gpu", "-bonded", "gpu", "-update", "gpu",
+            ]
         _run_gmx(mdrun_cmd, cwd=output_dir, timeout=self._timeout)
 
         return SimulationResult(
