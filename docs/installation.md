@@ -123,6 +123,8 @@ gmx --version
 - Running locally (`runner: local`): set `simulation.gpu_id` (e.g. `0`) explicitly. phosp only adds the `-nb gpu -pme gpu -bonded gpu -update gpu` offload flags to `mdrun` when `gpu_id` is set, so a run with `gpu_id: ~` still works but under-uses a fast GPU (only nonbonded work is offloaded; PME, bonded terms, and the integrator/constraint update stay on CPU).
 - Running on a cluster (`runner: slurm` or `runner: pbs`): leave `gpu_id: ~` — you can't know which GPU/node SLURM or PBS will assign until the job starts — and set `hpc.gpus: 1` instead (the default). The offload flags are added automatically whenever a GPU is requested (`hpc.gpus > 0`), so whatever device the scheduler hands you gets fully used, no device index required.
 
+`-update gpu` is skipped for the minimization phase specifically (it requires a dynamical integrator; minimization uses `steep`, which GROMACS rejects with `-update gpu`) — `-nb`/`-pme`/`-bonded gpu` still apply there, and NVT/NPT/production get the full flag set.
+
 See the "Using a datacenter GPU" note in the [README](../README.md#simulation-block) for full detail, and the [HPC environments](#hpc-environments) section below for setting up phosp on a cluster where GROMACS/CUDA come from environment modules or a fixed install path.
 
 ### Via package manager
@@ -330,7 +332,7 @@ Then run the test suite to confirm the Python layer is intact:
 
 ```bash
 pytest
-# 162 passed
+# 167 passed
 ```
 
 ---

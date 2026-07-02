@@ -643,7 +643,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-162 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+167 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 
