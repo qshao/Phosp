@@ -433,6 +433,8 @@ phosp run my_run/config.yaml --reference
 
 Compare the two runs' `stage4/*.csv` outputs directly — see [Running a comparison](docs/tutorial.md#9-running-a-comparison) in the tutorial for an example.
 
+For a full worked example, see the [PHGDH pT78 vs WT comparison report](benchmarks/phgdh_pT78/comparison/REPORT.md) — a phosphorylation-vs-wild-type MD comparison written up with figures, tables, and methodology notes.
+
 ---
 
 ## Analysis plugins
