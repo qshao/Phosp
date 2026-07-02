@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Benchmark pipeline outputs (large, regenerable via `phosp run`)
+benchmarks/*/output/
+benchmarks/*/output_reference/
+benchmarks/*/*.log
+benchmarks/*/comparison/data/pbc_fixed/
