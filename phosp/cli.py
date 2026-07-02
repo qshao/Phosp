@@ -62,7 +62,7 @@ analysis:
     - contacts
     - sasa
   rmsd:
-    selection: backbone
+    selection: name CA
   rmsf:
     selection: name CA
   sasa:

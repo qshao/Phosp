@@ -19,6 +19,17 @@ def test_init_creates_config_file(tmp_path: Path):
     assert "modification:" in content
 
 
+def test_init_rmsd_defaults_to_ca_only(tmp_path: Path):
+    """The generated config must match the pipeline's actual CA-only RMSD default,
+    not the stale full-backbone selection."""
+    out = tmp_path / "config.yaml"
+    result = runner.invoke(app, ["init", str(out)])
+    assert result.exit_code == 0, result.output
+    content = out.read_text()
+    assert "selection: name CA" in content
+    assert "selection: backbone" not in content
+
+
 def test_init_refuses_existing_file(tmp_path: Path):
     out = tmp_path / "config.yaml"
     out.write_text("existing: true\n")

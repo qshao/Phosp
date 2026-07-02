@@ -27,6 +27,7 @@ cd "$WORK"
 {% for phase in phases %}
 echo "=== Running {{ phase }} ==="
 
+{% set use_update_gpu = use_gpu and phase != 'minimization' %}
 {{ binary }} grompp \
     -f ../stage2/{{ phase }}.mdp \
     -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
@@ -38,12 +39,12 @@ echo "=== Running {{ phase }} ==="
 srun -n 1 --cpus-per-task=$SLURM_CPUS_PER_TASK \
     {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
     -ntomp $SLURM_CPUS_PER_TASK \
-    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu -pme gpu -bonded gpu -update gpu{% endif %}
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu -pme gpu -bonded gpu {% endif %}{% if use_update_gpu %}-update gpu{% endif %}
 
 {% else %}
 {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} \
     -ntmpi 1 -ntomp $SLURM_CPUS_PER_TASK \
-    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu -pme gpu -bonded gpu -update gpu{% endif %}
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu -pme gpu -bonded gpu {% endif %}{% if use_update_gpu %}-update gpu{% endif %}
 
 {% endif %}
 {% endfor %}

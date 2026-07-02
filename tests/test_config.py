@@ -1,9 +1,15 @@
 from pathlib import Path
 import pytest
 from pydantic import ValidationError
-from phosp.config import PhospConfig, PhosphoSite, load_config, SimulationConfig, HPCConfig
+from phosp.config import PhospConfig, PhosphoSite, load_config, SimulationConfig, HPCConfig, AnalysisConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+def test_analysis_config_rmsd_defaults_to_ca_only():
+    """Project default is CA-only RMSD (see rmsd.py) — the config default must match,
+    otherwise every config that doesn't set analysis.rmsd.selection explicitly
+    silently gets full-backbone RMSD instead of the documented default."""
+    assert AnalysisConfig().rmsd == {"selection": "name CA", "reference": "first_frame"}
 
 def test_load_valid_config():
     cfg = load_config(FIXTURES / "valid_config.yaml")

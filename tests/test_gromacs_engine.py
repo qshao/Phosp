@@ -119,6 +119,32 @@ def test_run_phase_offloads_pme_bonded_update_to_gpu_when_gpu_configured(tmp_pat
     assert mdrun_args[mdrun_args.index("-update") + 1] == "gpu"
 
 
+def test_run_phase_omits_update_gpu_for_minimization_phase(tmp_path):
+    """-update gpu (GPU-resident update) requires a dynamical integrator (md/md-vv/sd);
+    the minimization phase uses the steep integrator and GROMACS fatal-errors if
+    -update gpu is passed. -nb/-pme/-bonded gpu are still valid for minimization."""
+    engine = GROMACSEngine()
+    phase_dir = tmp_path / "minimization"
+    phase_dir.mkdir()
+    (phase_dir / "minimization.log").write_text("done")
+
+    with patch("phosp.engines.gromacs._run_gmx") as mock_gmx:
+        mock_gmx.return_value = MagicMock(returncode=0)
+        engine.run_phase(
+            phase="minimization",
+            mdp=tmp_path / "minimization.mdp",
+            topology=tmp_path / "topol.top",
+            structure=tmp_path / "ions.gro",
+            output_dir=phase_dir,
+            gpu_id=0,
+        )
+    mdrun_args = mock_gmx.call_args_list[1].args[0]
+    assert mdrun_args[mdrun_args.index("-nb") + 1] == "gpu"
+    assert mdrun_args[mdrun_args.index("-pme") + 1] == "gpu"
+    assert mdrun_args[mdrun_args.index("-bonded") + 1] == "gpu"
+    assert "-update" not in mdrun_args
+
+
 def test_run_phase_omits_gpu_offload_flags_when_gpu_id_is_none(tmp_path):
     engine = GROMACSEngine()
     phase_dir = tmp_path / "nvt"
@@ -333,7 +359,7 @@ def test_pbs_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
     script = engine.generate_hpc_script(
         scheduler="pbs",
         resources=_pbs_resources(),
-        phases=["minimization"],
+        phases=["production"],
         output_dir=tmp_path,
         gpu_id=0,
     )
@@ -352,7 +378,7 @@ def test_pbs_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_pat
     script = engine.generate_hpc_script(
         scheduler="pbs",
         resources=_pbs_resources(gpus=1),
-        phases=["minimization"],
+        phases=["production"],
         output_dir=tmp_path,
         gpu_id=None,
     )
@@ -360,6 +386,24 @@ def test_pbs_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_pat
     assert "-gpu_id" not in content  # no device index known
     for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
         assert flag in content
+
+
+def test_pbs_script_omits_update_gpu_for_minimization_phase(tmp_path):
+    """-update gpu is invalid for the steep-integrator minimization phase (GROMACS
+    fatal-errors); -nb/-pme/-bonded gpu are still valid and should stay."""
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="pbs",
+        resources=_pbs_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=0,
+    )
+    content = script.read_text()
+    assert "-nb gpu" in content
+    assert "-pme gpu" in content
+    assert "-bonded gpu" in content
+    assert "-update gpu" not in content
 
 
 def test_pbs_script_no_gpu_offload_flags_when_no_gpus_requested(tmp_path):
@@ -381,7 +425,7 @@ def test_slurm_script_gpu_offload_flags_when_gpu_id_set(tmp_path):
     script = engine.generate_hpc_script(
         scheduler="slurm",
         resources=_slurm_resources(),
-        phases=["minimization"],
+        phases=["production"],
         output_dir=tmp_path,
         gpu_id=0,
     )
@@ -398,7 +442,7 @@ def test_slurm_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_p
     script = engine.generate_hpc_script(
         scheduler="slurm",
         resources=_slurm_resources(gpus=1),
-        phases=["minimization"],
+        phases=["production"],
         output_dir=tmp_path,
         gpu_id=None,
     )
@@ -406,6 +450,24 @@ def test_slurm_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_p
     assert "-gpu_id" not in content
     for flag in ("-nb gpu", "-pme gpu", "-bonded gpu", "-update gpu"):
         assert flag in content
+
+
+def test_slurm_script_omits_update_gpu_for_minimization_phase(tmp_path):
+    """-update gpu is invalid for the steep-integrator minimization phase (GROMACS
+    fatal-errors); -nb/-pme/-bonded gpu are still valid and should stay."""
+    engine = GROMACSEngine()
+    script = engine.generate_hpc_script(
+        scheduler="slurm",
+        resources=_slurm_resources(),
+        phases=["minimization"],
+        output_dir=tmp_path,
+        gpu_id=0,
+    )
+    content = script.read_text()
+    assert "-nb gpu" in content
+    assert "-pme gpu" in content
+    assert "-bonded gpu" in content
+    assert "-update gpu" not in content
 
 
 def test_slurm_script_no_gpu_offload_flags_when_no_gpus_requested(tmp_path):

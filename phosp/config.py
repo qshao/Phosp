@@ -113,7 +113,7 @@ class SimulationConfig(BaseModel):
 class AnalysisConfig(BaseModel):
     model_config = {"extra": "allow"}
     plugins: list[str] = Field(default_factory=list)
-    rmsd: dict = Field(default_factory=lambda: {"selection": "backbone", "reference": "first_frame"})
+    rmsd: dict = Field(default_factory=lambda: {"selection": "name CA", "reference": "first_frame"})
     rmsf: dict = Field(default_factory=lambda: {"selection": "name CA"})
     mmpbsa: dict = Field(default_factory=lambda: {"method": "pbsa", "temperature": 300})
     sasa: dict = Field(default_factory=lambda: {"residues": []})

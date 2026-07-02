@@ -321,6 +321,11 @@ differently depending on `runner`:
   requested via `hpc.gpus > 0`, independent of `gpu_id` — see the
   [HPC usage](#hpc-usage-slurm--pbs) section below.
 
+`-update gpu` is omitted for the minimization phase specifically (GPU-resident
+update requires a dynamical integrator; minimization uses `steep`, which
+GROMACS rejects with `-update gpu`) — `-nb`/`-pme`/`-bonded gpu` still apply
+there. NVT, NPT, and production all get the full flag set.
+
 Each phosp run currently pins to a single GPU (`-ntmpi 1`); for multiple GPUs
 run separate phosp jobs. Confirm actual GPU use by checking `<phase>.log` in
 the stage3 output for a `Using GPU` line and a `Performance: X ns/day` figure
