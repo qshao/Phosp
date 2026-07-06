@@ -11,7 +11,7 @@ modification:
     - chain: A
       resid: 78
       resname: THR
-      phospho_type: pThr
+      mod_type: pThr
 
 forcefield: charmm36m
 protocol: globular_protein

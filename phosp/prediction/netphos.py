@@ -27,7 +27,7 @@ def _parse_netphos_output(output: str, threshold: float = 0.5) -> list[dict]:
         results.append({
             "resid": int(resid),
             "resname": _RESNAME_MAP[aa],
-            "phospho_type": _TYPE_MAP[aa],
+            "mod_type": _TYPE_MAP[aa],
             "score": score,
             "chain": "A",  # NetPhos does not report chain; default A
         })

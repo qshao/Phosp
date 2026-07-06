@@ -20,8 +20,8 @@ modification:
   sites:
     - chain: A          # PDB chain ID
       resid: 42         # residue number
-      resname: SER      # SER, THR, or TYR
-      phospho_type: pSer  # pSer, pThr, or pTyr (must match resname)
+      resname: SER      # must match mod_type: SER/THR/TYR for pSer/pThr/pTyr, LYS for acetylLys/methylLys1/2/3
+      mod_type: pSer      # pSer, pThr, pTyr, acetylLys, methylLys1, methylLys2, or methylLys3
 
 forcefield: charmm36m   # "charmm36m" or "amber_ff14sb"
 protocol: globular_protein  # "globular_protein", "membrane_protein", or "phosphopeptide"
@@ -214,7 +214,7 @@ def predict_sites(
         raise typer.Exit(code=1)
     for r in results:
         typer.echo(f"  chain={r['chain']} resid={r['resid']} resname={r['resname']} "
-                   f"type={r['phospho_type']} score={r['score']:.3f}")
+                   f"type={r['mod_type']} score={r['score']:.3f}")
     typer.echo(f"\nAdd selected entries to modification.sites in {config_path}")
 
 

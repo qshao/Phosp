@@ -96,18 +96,28 @@ class Pipeline:
             )
         if ff != "charmm36m":
             return
+        import os
         import re
         import subprocess
-        try:
-            out = subprocess.run(
-                [self.config.gromacs.binary, "--version"], capture_output=True, text=True
-            ).stdout
-            m = re.search(r"Data prefix:\s*(.+)", out)
-            if not m:
+
+        # GMXLIB is GROMACS's own mechanism for adding a force-field search
+        # path without write access to the binary's install prefix (e.g. a
+        # shared/read-only GROMACS build). Prefer it when it already has the
+        # force field, so we don't require write access to Data prefix.
+        gmxlib = os.environ.get("GMXLIB")
+        if gmxlib and (Path(gmxlib) / "charmm36m-jul2022.ff").exists():
+            top_dir = Path(gmxlib)
+        else:
+            try:
+                out = subprocess.run(
+                    [self.config.gromacs.binary, "--version"], capture_output=True, text=True
+                ).stdout
+                m = re.search(r"Data prefix:\s*(.+)", out)
+                if not m:
+                    return
+                top_dir = Path(m.group(1).strip()) / "share" / "gromacs" / "top"
+            except Exception:
                 return
-            top_dir = Path(m.group(1).strip()) / "share" / "gromacs" / "top"
-        except Exception:
-            return
 
         ff_dir = top_dir / "charmm36m-jul2022.ff"
         if not ff_dir.exists():
@@ -122,17 +132,27 @@ class Pipeline:
                 "See README.md for the full setup procedure."
             )
 
+        # Only the residue types this run's modification.sites actually patch
+        # need to be registered as "Protein" in residuetypes.dat, not a fixed
+        # phospho-only list — otherwise adding a new PTM type silently skips
+        # this check.
+        from phosp.modification.base import get_modifier
+
+        required = {
+            get_modifier(site.mod_type, "charmm36m").new_resname
+            for site in self.config.modification.sites
+        }
+
         res_file = top_dir / "residuetypes.dat"
-        missing = [
-            r for r in ("SEP", "TPO", "PTR")
-            if r not in res_file.read_text()
-        ]
+        content = res_file.read_text()
+        missing = sorted(r for r in required if r not in content)
         if missing:
+            printf_body = "".join(f"{r}\\tProtein\\n" for r in missing)
             raise PhospError(
-                f"Phospho-residue types {missing} missing from residuetypes.dat.\n"
+                f"Residue types {missing} (needed for this run's modification.sites) "
+                f"missing from residuetypes.dat.\n"
                 f"Add them with:\n"
-                f"  printf 'SEP\\tProtein\\nTPO\\tProtein\\nPTR\\tProtein\\n'"
-                f" >> {res_file}"
+                f"  printf '{printf_body}' >> {res_file}"
             )
 
     def _warn_disk_space(self) -> None:

@@ -30,7 +30,7 @@ def test_stage1_writes_manifest(tmp_path):
         stage.run()
     manifest = json.loads((tmp_path / "stage1" / "modification_manifest.json").read_text())
     assert isinstance(manifest, list)
-    assert manifest[0]["phospho_type"] == "pThr"
+    assert manifest[0]["mod_type"] == "pThr"
 
 
 def test_stage1_validate_inputs_missing_pdb(tmp_path):

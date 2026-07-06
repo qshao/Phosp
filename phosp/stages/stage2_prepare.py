@@ -66,7 +66,7 @@ class Stage2Prepare(Stage):
             "water_model": sim.water_model,
             "box_type": sim.box_type,
             "salt_mM": sim.salt_concentration_mM,
-            "phospho_sites": manifest,
+            "modification_sites": manifest,
         }
         report_path = out / "prep_report.json"
         report_path.write_text(json.dumps(report, indent=2))

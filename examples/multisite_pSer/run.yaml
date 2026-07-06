@@ -16,11 +16,11 @@ modification:
     - chain: A
       resid: 10
       resname: SER
-      phospho_type: pSer
+      mod_type: pSer
     - chain: A
       resid: 47
       resname: SER
-      phospho_type: pSer
+      mod_type: pSer
 
 forcefield: charmm36m
 protocol: globular_protein

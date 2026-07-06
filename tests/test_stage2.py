@@ -17,7 +17,7 @@ def _make_stage(tmp_path):
     import shutil
     shutil.copy(FIXTURES / "ubiquitin.pdb", stage1_dir / "modified.pdb")
     manifest = [{"chain": "A", "resid": 66, "original_resname": "THR",
-                 "phospho_type": "pThr", "new_resname": "TPO"}]
+                 "mod_type": "pThr", "new_resname": "TPO"}]
     (stage1_dir / "modification_manifest.json").write_text(json.dumps(manifest))
     engine = MagicMock()
     engine.prepare_topology.return_value = tmp_path / "output" / "stage2" / "topol.top"

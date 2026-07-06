@@ -15,9 +15,9 @@ def test_parse_netphos_output():
     results = _parse_netphos_output(SAMPLE_OUTPUT, threshold=0.5)
     assert len(results) == 2  # 0.801 and 0.712 pass; 0.421 fails
     assert results[0]["resid"] == 42
-    assert results[0]["phospho_type"] == "pSer"
+    assert results[0]["mod_type"] == "pSer"
     assert results[1]["resid"] == 66
-    assert results[1]["phospho_type"] == "pThr"
+    assert results[1]["mod_type"] == "pThr"
 
 def test_parse_filters_by_threshold():
     results = _parse_netphos_output(SAMPLE_OUTPUT, threshold=0.75)

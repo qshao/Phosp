@@ -7,75 +7,59 @@ from Bio.PDB.Atom import Atom
 
 logger = logging.getLogger(__name__)
 
-# FF-specific residue names for phosphorylated residues
-_FF_NAMES: dict[str, dict[str, str]] = {
-    "charmm36m": {"pSer": "SEP", "pThr": "TPO", "pTyr": "PTR"},
-    "amber_ff14sb": {"pSer": "SEP", "pThr": "TPO", "pTyr": "PTR"},
-}
-
-# Phosphate atom names matching CHARMM36/AMBER RTP entries (P, O1P, O2P, O3P)
-_PHOSPHO_ATOMS = {
-    "pSer": {"bridging_O": "OG",  "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
-    "pThr": {"bridging_O": "OG1", "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
-    "pTyr": {"bridging_O": "OH",  "P": "P", "O1": "O1P", "O2": "O2P", "O3": "O3P"},
+# mod_type -> "module.path.ClassName", lazily imported by get_modifier() so a
+# single-site run doesn't pay the import cost of every modifier's dependencies.
+# Adding a new PTM type is a new subclass module + one entry here.
+_MODIFIER_REGISTRY: dict[str, str] = {
+    "pSer": "phosp.modification.pser.PSerModifier",
+    "pThr": "phosp.modification.pthr.PThrModifier",
+    "pTyr": "phosp.modification.ptyr.PTyrModifier",
+    "acetylLys": "phosp.modification.acetyl.AcetylLysModifier",
+    "methylLys1": "phosp.modification.methyl.MethylLys1Modifier",
+    "methylLys2": "phosp.modification.methyl.MethylLys2Modifier",
+    "methylLys3": "phosp.modification.methyl.MethylLys3Modifier",
 }
 
 
 class Modifier(ABC):
-    phospho_type: str
+    mod_type: str
+    # Force field name -> patched residue name, e.g. {"charmm36m": "TPO"}.
+    ff_resnames: dict[str, str]
 
     def __init__(self, forcefield: str) -> None:
         self.forcefield = forcefield
-        self.new_resname = _FF_NAMES[forcefield][self.phospho_type]
+        self.new_resname = self.ff_resnames[forcefield]
 
     @abstractmethod
-    def _get_bridging_atom_name(self) -> str: ...
+    def _build_atoms(self, residue) -> None:
+        """Add/rename the heavy atoms that turn the source residue into new_resname.
+
+        Hydrogens are not this method's concern: pdb2gmx is invoked with -ignh
+        and regenerates them from new_resname's .hdb entry regardless of what
+        hydrogens are present in the input structure.
+        """
 
     def apply(self, structure: Structure, chain_id: str, resid: int) -> Structure:
         residue = structure[0][chain_id][(" ", resid, " ")]
         residue.resname = self.new_resname
-        self._add_phosphate_atoms(residue)
-        logger.info("Patched %s %s%d -> %s", self.phospho_type, chain_id, resid, self.new_resname)
+        self._build_atoms(residue)
+        logger.info("Patched %s %s%d -> %s", self.mod_type, chain_id, resid, self.new_resname)
         return structure
 
-    def _add_phosphate_atoms(self, residue) -> None:
-        atom_names = _PHOSPHO_ATOMS[self.phospho_type]
-        bridging = residue[atom_names["bridging_O"]].get_vector().get_array()
-
-        # Place P along CB->bridging O direction, 1.61 Å from bridging O
+    @staticmethod
+    def _bond_direction(residue, from_name: str, to_name: str, fallback: np.ndarray) -> np.ndarray:
+        """Unit vector from atom from_name to atom to_name; fallback if from_name is absent."""
+        to_pos = residue[to_name].get_vector().get_array()
         try:
-            cb = residue["CB"].get_vector().get_array()
+            from_pos = residue[from_name].get_vector().get_array()
         except KeyError:
-            cb = bridging + np.array([0.0, 0.0, -1.0])
+            return fallback / np.linalg.norm(fallback)
 
-        direction = bridging - cb
+        direction = to_pos - from_pos
         norm = np.linalg.norm(direction)
         if norm < 1e-10:
-            direction = np.array([0.0, 0.0, 1.0])
-        else:
-            direction = direction / norm
-
-        p_pos = bridging + direction * 1.61
-
-        self._add_atom(residue, atom_names["P"], p_pos, "P")
-
-        # Three non-bridging oxygens in approximate tetrahedral arrangement around P
-        # Find first perpendicular vector (avoid collinearity with [0,1,0])
-        ref = np.array([0.0, 1.0, 0.0])
-        if abs(np.dot(direction, ref)) > 0.9:
-            ref = np.array([1.0, 0.0, 0.0])
-        perp1 = np.cross(direction, ref)
-        perp1 = perp1 / np.linalg.norm(perp1)
-        perp2 = np.cross(direction, perp1)
-        perp2 = perp2 / np.linalg.norm(perp2)
-
-        offset = 1.52
-        for name, vec in [
-            (atom_names["O1"], p_pos + perp1 * offset),
-            (atom_names["O2"], p_pos - perp1 * (offset * 0.5) + perp2 * (offset * 0.87)),
-            (atom_names["O3"], p_pos - perp1 * (offset * 0.5) - perp2 * (offset * 0.87)),
-        ]:
-            self._add_atom(residue, name, vec, "O")
+            return fallback / np.linalg.norm(fallback)
+        return direction / norm
 
     @staticmethod
     def _add_atom(residue, name: str, coord: np.ndarray, element: str) -> None:
@@ -85,16 +69,12 @@ class Modifier(ABC):
         residue.add(atom)
 
 
-def get_modifier(phospho_type: str, forcefield: str) -> Modifier:
-    from phosp.modification.pser import PSerModifier
-    from phosp.modification.pthr import PThrModifier
-    from phosp.modification.ptyr import PTyrModifier
-    match phospho_type:
-        case "pSer":
-            return PSerModifier(forcefield)
-        case "pThr":
-            return PThrModifier(forcefield)
-        case "pTyr":
-            return PTyrModifier(forcefield)
-        case _:
-            raise ValueError(f"Unknown phospho_type: {phospho_type}")
+def get_modifier(mod_type: str, forcefield: str) -> Modifier:
+    import importlib
+
+    path = _MODIFIER_REGISTRY.get(mod_type)
+    if path is None:
+        raise ValueError(f"Unknown mod_type: {mod_type}")
+    module_path, cls_name = path.rsplit(".", 1)
+    cls = getattr(importlib.import_module(module_path), cls_name)
+    return cls(forcefield)

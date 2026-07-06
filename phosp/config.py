@@ -20,24 +20,44 @@ class InputConfig(BaseModel):
         return self
 
 
-class PhosphoSite(BaseModel):
+# Maps each supported modification type to the source residue it applies to.
+# Kept here (rather than importing phosp.modification, which pulls in Bio.PDB/
+# numpy) since config.py is on the hot path for every CLI invocation. Adding a
+# new Modifier subclass requires a matching one-line entry here.
+_SOURCE_RESNAME: dict[str, str] = {
+    "pSer": "SER",
+    "pThr": "THR",
+    "pTyr": "TYR",
+    "acetylLys": "LYS",
+    "methylLys1": "LYS",
+    "methylLys2": "LYS",
+    "methylLys3": "LYS",
+}
+
+
+class ModificationSite(BaseModel):
     chain: str
     resid: int
-    resname: Literal["SER", "THR", "TYR"]
-    phospho_type: Literal["pSer", "pThr", "pTyr"]
+    resname: str
+    mod_type: str
 
     @model_validator(mode="after")
-    def check_resname_phospho_type(self) -> PhosphoSite:
-        mapping = {"SER": "pSer", "THR": "pThr", "TYR": "pTyr"}
-        if mapping[self.resname] != self.phospho_type:
+    def check_resname_mod_type(self) -> ModificationSite:
+        if self.mod_type not in _SOURCE_RESNAME:
             raise ValueError(
-                f"{self.resname} must use {mapping[self.resname]}, got {self.phospho_type}"
+                f"Unknown mod_type: {self.mod_type!r}. "
+                f"Known types: {sorted(_SOURCE_RESNAME)}"
+            )
+        expected = _SOURCE_RESNAME[self.mod_type]
+        if self.resname != expected:
+            raise ValueError(
+                f"{self.mod_type} requires resname {expected}, got {self.resname}"
             )
         return self
 
 
 class ModificationConfig(BaseModel):
-    sites: list[PhosphoSite]
+    sites: list[ModificationSite]
 
 
 class HPCConfig(BaseModel):

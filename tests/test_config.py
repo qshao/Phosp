@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 from pydantic import ValidationError
-from phosp.config import PhospConfig, PhosphoSite, load_config, SimulationConfig, HPCConfig, AnalysisConfig
+from phosp.config import PhospConfig, ModificationSite, load_config, SimulationConfig, HPCConfig, AnalysisConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -17,9 +17,14 @@ def test_load_valid_config():
     assert cfg.input.source == "pdb"
     assert cfg.input.ph == 7.4
 
-def test_phosphosite_resname_mismatch():
-    with pytest.raises(Exception, match="must use"):
-        PhosphoSite(chain="A", resid=42, resname="SER", phospho_type="pThr")
+def test_modificationsite_resname_mismatch():
+    with pytest.raises(Exception, match="requires resname"):
+        ModificationSite(chain="A", resid=42, resname="SER", mod_type="pThr")
+
+
+def test_modificationsite_unknown_mod_type():
+    with pytest.raises(Exception, match="Unknown mod_type"):
+        ModificationSite(chain="A", resid=42, resname="SER", mod_type="pHis")
 
 def test_missing_path_for_pdb_source():
     with pytest.raises(Exception):

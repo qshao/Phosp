@@ -7,8 +7,8 @@ class ForceField(ABC):
     name: str
 
     @abstractmethod
-    def get_phospho_params(self, phospho_type: str) -> Path:
-        """Return path to bundled parameter file for pSer/pThr/pTyr."""
+    def get_modification_params(self, mod_type: str) -> Path:
+        """Return path to bundled parameter file for a modification type, if any."""
 
     @abstractmethod
     def patch_topology(self, topology: Path, sites: list) -> Path:

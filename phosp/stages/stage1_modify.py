@@ -87,16 +87,16 @@ class Stage1Modify(Stage):
 
             manifest = []
             for site in cfg.modification.sites:
-                modifier = get_modifier(site.phospho_type, cfg.forcefield)
+                modifier = get_modifier(site.mod_type, cfg.forcefield)
                 structure = modifier.apply(structure, chain_id=site.chain, resid=site.resid)
                 manifest.append({
                     "chain": site.chain,
                     "resid": site.resid,
                     "original_resname": site.resname,
-                    "phospho_type": site.phospho_type,
+                    "mod_type": site.mod_type,
                     "new_resname": modifier.new_resname,
                 })
-                logger.info("Applied %s to %s%d", site.phospho_type, site.chain, site.resid)
+                logger.info("Applied %s to %s%d", site.mod_type, site.chain, site.resid)
 
             # 5. Write modified structure
             modified_pdb = out / "modified.pdb"
