@@ -79,8 +79,14 @@ class Stage4Analyze(Stage):
             plugin_config = getattr(cfg.analysis, plugin_name, {})
             if not isinstance(plugin_config, dict):
                 plugin_config = plugin_config.model_dump() if hasattr(plugin_config, "model_dump") else {}
-            # Lets subprocess-based plugins (e.g. mmpbsa) bound external tool runtime.
-            plugin_config = {**plugin_config, "_timeout_minutes": cfg.gromacs.timeout_minutes}
+            # Lets subprocess-based plugins (e.g. mmpbsa) bound external tool
+            # runtime and write scratch/output files into this stage's own
+            # output directory instead of a previous (finalized) stage's.
+            plugin_config = {
+                **plugin_config,
+                "_timeout_minutes": cfg.gromacs.timeout_minutes,
+                "_work_dir": out,
+            }
 
             if self.ui:
                 self.ui.plugin_start(plugin_name)

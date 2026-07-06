@@ -144,12 +144,14 @@ class GROMACSEngine(MDEngine):
             "-ntmpi", "1",
         ]
         if gpu_id is not None:
-            mdrun_cmd += ["-gpu_id", str(gpu_id), "-nb", "gpu"]
+            mdrun_cmd += ["-gpu_id", str(gpu_id), "-nb", "gpu", "-pme", "gpu", "-bonded", "gpu"]
             if phase != "minimization":
-                # PME-on-GPU, bonded-on-GPU, and GPU-resident update all require
-                # a dynamical integrator (md/md-vv/sd); minimization uses steep
-                # and GROMACS fatal-errors if any of these are passed to it.
-                mdrun_cmd += ["-pme", "gpu", "-bonded", "gpu", "-update", "gpu"]
+                # GPU-resident update (-update gpu) requires a dynamical integrator
+                # (md/md-vv/sd); minimization uses steep and GROMACS fatal-errors if
+                # -update gpu is passed to it. -nb/-pme/-bonded gpu are pure
+                # per-step force-calculation offloads, independent of the
+                # integrator, so they're valid (and desirable) for minimization too.
+                mdrun_cmd += ["-update", "gpu"]
         _run_gmx(mdrun_cmd, cwd=output_dir, timeout=self._timeout)
 
         return SimulationResult(

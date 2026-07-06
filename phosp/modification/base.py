@@ -28,7 +28,13 @@ class Modifier(ABC):
 
     def __init__(self, forcefield: str) -> None:
         self.forcefield = forcefield
-        self.new_resname = self.ff_resnames[forcefield]
+        try:
+            self.new_resname = self.ff_resnames[forcefield]
+        except KeyError:
+            raise ValueError(
+                f"{self.mod_type} does not support forcefield {forcefield!r}. "
+                f"Supported: {sorted(self.ff_resnames)}"
+            ) from None
 
     @abstractmethod
     def _build_atoms(self, residue) -> None:

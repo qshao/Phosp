@@ -44,8 +44,12 @@ class Pipeline:
         if config_path is not None:
             try:
                 self._config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:16]
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.warning(
+                    "Could not hash config file %s (%s) — the config-change "
+                    "warning on resume will be unavailable for this run.",
+                    config_path, exc,
+                )
 
     def execute(
         self,
@@ -72,6 +76,20 @@ class Pipeline:
         self._clean_orphan_tmpdirs()
         for stage_name in stages:
             if self.checkpoint.is_complete(stage_name):
+                # checkpoint.json only records that the stage succeeded once —
+                # it never re-verifies the artifact directory is still on disk.
+                # If it was deleted externally (cleanup, failed rsync, manual
+                # edit) after completion, skipping it here would surface as a
+                # confusing "run stageN first" error from whichever stage
+                # runs next, with no hint the checkpoint itself is stale.
+                if not (self.output_root / stage_name).exists():
+                    logger.warning(
+                        "checkpoint.json marks %s complete, but %s is missing "
+                        "on disk — re-running it.",
+                        stage_name, self.output_root / stage_name,
+                    )
+                    self._run_stage(stage_name)
+                    continue
                 logger.info("Skipping %s (already complete)", stage_name)
                 continue
             self._run_stage(stage_name)
@@ -201,31 +219,31 @@ class Pipeline:
             self.ui.stage_start(stage_name)
 
         start = time.monotonic()
-        renamed = False
         try:
             self.checkpoint.mark_stage_started(stage_name)
             stage.validate_inputs()
             result = stage.run()
-            if final_dir.exists():
-                shutil.rmtree(final_dir)
-            tmp_dir.rename(final_dir)
-            renamed = True
-            remapped = self._remap_artifacts(result.artifacts, tmp_dir, final_dir)
-            self.checkpoint.mark_complete(stage_name, remapped, config_hash=self._config_hash)
-            elapsed = time.monotonic() - start
-            if self.ui:
-                self.ui.stage_complete(stage_name, elapsed)
-            logger.info("Completed %s → %s", stage_name, final_dir)
         except Exception as exc:
             if self.ui:
                 self.ui.stage_error(stage_name, exc)
             if tmp_dir.exists():
                 shutil.rmtree(tmp_dir)
-            # Only delete final_dir if we put it there in this run; otherwise a
-            # prior successful run's output is still valid and should be kept.
-            if renamed and final_dir.exists():
-                shutil.rmtree(final_dir)
             raise
+
+        if final_dir.exists():
+            shutil.rmtree(final_dir)
+        tmp_dir.rename(final_dir)
+        # The stage's real output (potentially a multi-hour GROMACS run) is now
+        # safely on disk at final_dir. Bookkeeping below must never delete it on
+        # failure — a bug here should surface as an unhandled exception with the
+        # completed work intact, not silently destroy it while checkpoint.json
+        # may already say the stage succeeded.
+        remapped = self._remap_artifacts(result.artifacts, tmp_dir, final_dir)
+        self.checkpoint.mark_complete(stage_name, remapped, config_hash=self._config_hash)
+        elapsed = time.monotonic() - start
+        if self.ui:
+            self.ui.stage_complete(stage_name, elapsed)
+        logger.info("Completed %s → %s", stage_name, final_dir)
 
     @staticmethod
     def _remap_artifacts(artifacts: dict, from_dir: Path, to_dir: Path) -> dict[str, str]:

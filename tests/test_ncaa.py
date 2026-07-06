@@ -222,6 +222,16 @@ def test_lint_bundle_missing_files(tmp_path):
     assert any("missing required file" in e for e in errors)
 
 
+def test_lint_bundle_malformed_bonds_line_does_not_crash(tmp_path):
+    """Regression test: a truncated [ bonds ] line (e.g. one stray token) must
+    surface as a clean lint error, not an unhandled ValueError from unpacking
+    a too-short tuple downstream in lint_bundle."""
+    bad_rtp = _XAA_RTP.replace("       CX    CB", "       CX")
+    bundle = _write_bundle(tmp_path, rtp=bad_rtp)
+    errors = lint_bundle(bundle)
+    assert any("malformed [ bonds ] line" in e for e in errors)
+
+
 def test_lint_bundle_bad_atom_ref_in_bonds(tmp_path):
     bad_rtp = _XAA_RTP.replace("       CX    CB", "       CX    NOTREAL")
     bundle = _write_bundle(tmp_path, rtp=bad_rtp)

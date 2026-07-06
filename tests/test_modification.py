@@ -84,3 +84,11 @@ def test_get_modifier_dispatch():
 def test_unknown_mod_type_raises():
     with pytest.raises(ValueError, match="Unknown mod_type"):
         get_modifier("pHis", "charmm36m")
+
+
+def test_unsupported_forcefield_raises_clean_error():
+    """Regression test: acetylLys/methylLys* only have a charmm36m entry in
+    ff_resnames — requesting amber_ff14sb must raise a clear ValueError, not
+    an undocumented bare KeyError from the ff_resnames[forcefield] lookup."""
+    with pytest.raises(ValueError, match="acetylLys does not support forcefield"):
+        get_modifier("acetylLys", "amber_ff14sb")

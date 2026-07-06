@@ -42,14 +42,30 @@ class CHARMM36mFF(ForceField):
             shutil.rmtree(ext_dir)
         shutil.copytree(base_ff_dir, ext_dir)
 
-        rtp_chunks, hdb_chunks, itp_includes = [], [], []
+        # Dedup by resolved path: the same ncAA bundle may legitimately be
+        # used at more than one site, and must only be merged into
+        # ncaa.rtp/ncaa.hdb once — otherwise pdb2gmx sees the same
+        # [ RESNAME ] block (and #include) declared twice and errors.
+        seen: set[Path] = set()
+        unique_bundle_dirs = []
         for bundle_dir in bundle_dirs:
-            bundle_dir = Path(bundle_dir)
+            resolved = Path(bundle_dir).resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            unique_bundle_dirs.append(resolved)
+
+        rtp_chunks, hdb_chunks, itp_includes = [], [], []
+        for i, bundle_dir in enumerate(unique_bundle_dirs):
             rtp_chunks.append((bundle_dir / "residue.rtp").read_text())
             hdb_chunks.append((bundle_dir / "residue.hdb").read_text())
             params_itp = bundle_dir / "params.itp"
             if params_itp.exists():
-                dest_name = f"{bundle_dir.name}_params.itp"
+                # Indexed rather than bundle_dir.name-based: two different
+                # bundle directories can share a basename (e.g. "expA/bundle"
+                # and "expB/bundle"), which would otherwise collide and
+                # silently overwrite one bundle's params with another's.
+                dest_name = f"bundle{i}_params.itp"
                 shutil.copy2(params_itp, ext_dir / dest_name)
                 itp_includes.append(dest_name)
 

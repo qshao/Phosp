@@ -29,10 +29,16 @@ def parse_rtp_block(text: str) -> dict:
             atoms.append({"name": fields[0], "type": fields[1],
                            "charge": float(fields[2]), "cgnr": fields[3]})
         elif section == "bonds":
+            if len(fields) < 2:
+                raise ValueError(f"malformed [ bonds ] line: {line!r}")
             bonds.append(tuple(fields[:2]))
         elif section == "impropers":
+            if len(fields) < 4:
+                raise ValueError(f"malformed [ impropers ] line: {line!r}")
             impropers.append(tuple(fields[:4]))
         elif section == "cmap":
+            if len(fields) < 5:
+                raise ValueError(f"malformed [ cmap ] line: {line!r}")
             cmap.append(tuple(fields[:5]))
     return {"resname": resname, "atoms": atoms, "bonds": bonds,
             "impropers": impropers, "cmap": cmap}

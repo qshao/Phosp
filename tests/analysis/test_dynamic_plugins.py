@@ -25,6 +25,20 @@ def test_pca_returns_two_components(universe):
     assert len(df) == len(universe.trajectory)
 
 
+def test_pca_does_not_mutate_shared_universe(universe):
+    """stage4_analyze.py passes one Universe to every plugin in sequence —
+    PCA's align=True must run on its own copy, not the shared one."""
+    import numpy as np
+    universe.trajectory[0]
+    before = universe.atoms.positions.copy()
+
+    PCAPlugin().run(universe, {"selection": "name CA"})
+
+    universe.trajectory[0]
+    after = universe.atoms.positions
+    assert np.allclose(before, after)
+
+
 def test_dccm_returns_square_matrix(universe):
     plugin = DCCMPlugin()
     df = plugin.run(universe, {"selection": "name CA"})

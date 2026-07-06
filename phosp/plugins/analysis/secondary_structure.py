@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import MDAnalysis as mda
 from matplotlib.figure import Figure
-from phosp.plugins.analysis.base import AnalysisPlugin
+from phosp.plugins.analysis.base import AnalysisPlugin, PROTEIN_SELECTION
 
 
 class SecondaryStructurePlugin(AnalysisPlugin):
@@ -15,7 +15,7 @@ class SecondaryStructurePlugin(AnalysisPlugin):
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
         try:
             from MDAnalysis.analysis.dssp import DSSP
-            protein = universe.select_atoms("protein")
+            protein = universe.select_atoms(PROTEIN_SELECTION)
             dssp = DSSP(protein).run()
             resids = protein.residues.resids
             rows = []

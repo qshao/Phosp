@@ -19,14 +19,30 @@ module load {{ resources.gromacs_module }}
 {% endif %}
 
 set -euo pipefail
-WORK={{ output_dir }}
+# Resolve WORK from this script's own location rather than hardcoding
+# {{ output_dir }} — the pipeline may still be renaming the tmp stage
+# directory to its final name when a fast scheduler dispatches this job,
+# so a baked-in path can point at a directory that doesn't exist yet.
+# This script's containing directory is correct at whatever moment it
+# actually runs, tmp or final.
+WORK="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 cd "$WORK"
 
 {% set is_mpi = '_mpi' in binary %}
-{% set use_gpu = resources.gpus and resources.gpus > 0 %}
+{# On SLURM/PBS the scheduler assigns the actual GPU device at submit time, so
+   a config can legitimately request a GPU (hpc.gpus > 0) without knowing
+   gpu_id in advance — offload must still turn on in that case, not only when
+   gpu_id is explicitly set. -gpu_id itself is only emitted when known. #}
+{% set use_gpu = (resources.gpus and resources.gpus > 0) or (gpu_id is not none) %}
 {% for phase in phases %}
 echo "=== Running {{ phase }} ==="
 
+{# GPU-resident update (-update gpu) requires a dynamical integrator
+   (md/md-vv/sd); minimization uses steep and GROMACS fatal-errors if
+   -update gpu is passed to it. -nb/-pme/-bonded gpu are pure per-step
+   force-calculation offloads, independent of the integrator, so they're
+   valid (and desirable) for minimization too — see engines/gromacs.py's
+   local mdrun path, which this must match. #}
 {% set use_update_gpu = use_gpu and phase != 'minimization' %}
 {{ binary }} grompp \
     -f ../stage2/{{ phase }}.mdp \

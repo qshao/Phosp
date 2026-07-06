@@ -168,7 +168,7 @@ class SimulationConfig(BaseModel):
 class AnalysisConfig(BaseModel):
     model_config = {"extra": "allow"}
     plugins: list[str] = Field(default_factory=list)
-    rmsd: dict = Field(default_factory=lambda: {"selection": "name CA", "reference": "first_frame"})
+    rmsd: dict = Field(default_factory=lambda: {"selection": "name CA"})
     rmsf: dict = Field(default_factory=lambda: {"selection": "name CA"})
     mmpbsa: dict = Field(default_factory=lambda: {"method": "pbsa", "temperature": 300})
     sasa: dict = Field(default_factory=lambda: {"residues": []})
@@ -178,6 +178,13 @@ class GROMACSConfig(BaseModel):
     binary: str = "gmx"  # path or name of the gmx binary (e.g. "gmx", "gmx_mpi", "/opt/gromacs/bin/gmx")
     timeout_minutes: int | None = None  # None = no limit; e.g. 120 for 2-hour hard cap
     pdb2pqr: str = "pdb2pqr"  # name or full path, e.g. "/opt/pdb2pqr/bin/pdb2pqr"
+
+    @field_validator("timeout_minutes")
+    @classmethod
+    def timeout_minutes_positive(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("timeout_minutes must be > 0 (or omitted for no limit)")
+        return v
 
 
 class PhospConfig(BaseModel):

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import MDAnalysis as mda
 from matplotlib.figure import Figure
-from phosp.plugins.analysis.base import AnalysisPlugin
+from phosp.plugins.analysis.base import AnalysisPlugin, PROTEIN_SELECTION
 
 
 class SASAPlugin(AnalysisPlugin):
@@ -15,15 +15,11 @@ class SASAPlugin(AnalysisPlugin):
         import freesasa
         target_resids = set(config.get("residues", []))
 
-        # MDAnalysis's "protein" selection macro only recognizes standard
-        # residue names, so it silently excludes phospho-residues (SEP/TPO/PTR)
-        # — include them explicitly or a phosphosite selection returns 0 atoms.
-        protein_sel = "(protein or resname SEP TPO PTR)"
         # Per-residue SASA must be computed with the *entire* protein present
         # so neighboring residues can sterically shield each other — running
         # freesasa on just the target residues in isolation reports the SASA
         # of a disconnected fragment, not the true in-context value.
-        atoms = universe.select_atoms(protein_sel)
+        atoms = universe.select_atoms(PROTEIN_SELECTION)
         target_idx = (
             [i for i, atom in enumerate(atoms) if atom.resid in target_resids]
             if target_resids else None

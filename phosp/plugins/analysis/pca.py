@@ -14,8 +14,16 @@ class PCAPlugin(AnalysisPlugin):
 
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
         selection = config.get("selection", "name CA")
-        pc = mda_pca.PCA(universe, select=selection).run()
-        atoms = universe.select_atoms(selection)
+
+        # Without alignment, PC1/PC2 are dominated by whole-body rotation/
+        # translation rather than internal conformational motion — the same
+        # class of bug already fixed in rmsf.py. Align on an independent copy
+        # (not the passed-in universe, which stage4_analyze.py shares across
+        # every other plugin) since MDAnalysis's align=True mutates atom
+        # positions in place via _fit_to().
+        work_universe = mda.Universe(universe.filename, universe.trajectory.filename)
+        pc = mda_pca.PCA(work_universe, select=selection, align=True).run()
+        atoms = work_universe.select_atoms(selection)
         projected = pc.transform(atoms, n_components=2)
         df = pd.DataFrame({
             "frame": range(len(projected)),

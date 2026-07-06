@@ -14,7 +14,7 @@ def discover_top_dir(gromacs_binary: str, ff_dirname: str) -> Path | None:
     still produce a helpful "not found, install it here" message; returns
     None only if no candidate top_dir could be determined at all."""
     gmxlib = os.environ.get("GMXLIB")
-    if gmxlib and (Path(gmxlib) / ff_dirname).exists():
+    if gmxlib:
         return Path(gmxlib)
 
     try:

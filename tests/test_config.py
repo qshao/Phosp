@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 from pydantic import ValidationError
-from phosp.config import PhospConfig, ModificationSite, load_config, SimulationConfig, HPCConfig, AnalysisConfig
+from phosp.config import PhospConfig, ModificationSite, load_config, SimulationConfig, HPCConfig, AnalysisConfig, GROMACSConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -9,7 +9,7 @@ def test_analysis_config_rmsd_defaults_to_ca_only():
     """Project default is CA-only RMSD (see rmsd.py) — the config default must match,
     otherwise every config that doesn't set analysis.rmsd.selection explicitly
     silently gets full-backbone RMSD instead of the documented default."""
-    assert AnalysisConfig().rmsd == {"selection": "name CA", "reference": "first_frame"}
+    assert AnalysisConfig().rmsd == {"selection": "name CA"}
 
 def test_load_valid_config():
     cfg = load_config(FIXTURES / "valid_config.yaml")
@@ -83,3 +83,21 @@ def test_hpc_ntasks_must_be_at_least_1():
 def test_hpc_gpus_non_negative():
     with pytest.raises(ValidationError, match="gpus"):
         HPCConfig(gpus=-1)
+
+
+def test_timeout_minutes_must_be_positive():
+    """A negative timeout_minutes previously passed validation silently and
+    became a negative subprocess timeout (immediate/undefined failure)
+    instead of a clear config error."""
+    with pytest.raises(ValidationError, match="timeout_minutes"):
+        GROMACSConfig(timeout_minutes=-5)
+
+
+def test_timeout_minutes_zero_rejected():
+    with pytest.raises(ValidationError, match="timeout_minutes"):
+        GROMACSConfig(timeout_minutes=0)
+
+
+def test_timeout_minutes_none_allowed():
+    cfg = GROMACSConfig(timeout_minutes=None)
+    assert cfg.timeout_minutes is None

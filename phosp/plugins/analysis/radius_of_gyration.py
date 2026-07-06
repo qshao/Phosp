@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import MDAnalysis as mda
 from matplotlib.figure import Figure
-from phosp.plugins.analysis.base import AnalysisPlugin
+from phosp.plugins.analysis.base import AnalysisPlugin, PROTEIN_SELECTION
 
 
 class RadiusOfGyrationPlugin(AnalysisPlugin):
     name = "radius_of_gyration"
 
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
-        protein = universe.select_atoms("protein")
+        protein = universe.select_atoms(PROTEIN_SELECTION)
         times, rg_values = [], []
         for ts in universe.trajectory:
             times.append(ts.time)

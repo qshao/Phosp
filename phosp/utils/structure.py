@@ -24,6 +24,15 @@ class _CleanSelect(Select):
             return False
         return residue.get_resname().strip() in self._keep
 
+    def accept_atom(self, atom):
+        # Biopython's default Select accepts every altLoc conformer of a
+        # disordered atom, writing duplicate atom names (e.g. two "CA"
+        # records) into the same residue — pdb2gmx rejects or mishandles
+        # that. Keep exactly one conformer per disordered atom.
+        if not atom.is_disordered():
+            return True
+        return atom.get_altloc() in (" ", "A")
+
 
 def fetch_structure(
     source: str,

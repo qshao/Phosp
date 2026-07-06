@@ -30,7 +30,13 @@ class MMPBSAPlugin(AnalysisPlugin):
         if not traj or not top:
             raise RuntimeError("Cannot determine trajectory/topology paths from Universe.")
 
-        work_dir = Path(traj).parent
+        # Write scratch/output files into this analysis stage's own directory
+        # (passed by stage4_analyze.py), not Path(traj).parent — that's a
+        # previous, already-finalized stage's output directory (stage3's
+        # production/), and gmx_MMPBSA's numerous intermediate files would
+        # otherwise pollute it on every stage4 run.
+        work_dir = Path(config.get("_work_dir") or Path(traj).parent)
+        work_dir.mkdir(parents=True, exist_ok=True)
         input_file = work_dir / "mmpbsa.in"
         input_file.write_text(
             f"&general\n"

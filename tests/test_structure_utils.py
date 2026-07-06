@@ -16,6 +16,25 @@ def test_clean_structure_removes_waters(tmp_path):
     assert "HOH" not in content
 
 
+def test_clean_structure_keeps_only_one_altloc_conformer(tmp_path):
+    """Regression test: Biopython's default Select writes every altLoc
+    conformer of a disordered atom, producing duplicate atom names (e.g. two
+    "CA" records) in one residue — which pdb2gmx rejects/mishandles. Only one
+    conformer must survive."""
+    altloc_pdb = tmp_path / "altloc_input.pdb"
+    altloc_pdb.write_text(
+        "ATOM      1  N   ALA A   1      10.000  10.000  10.000  1.00 10.00           N\n"
+        "ATOM      2  CA AALA A   1      11.000  10.000  10.000  0.60 10.00           C\n"
+        "ATOM      3  CA BALA A   1      11.200  10.100  10.100  0.40 10.00           C\n"
+        "ATOM      4  C   ALA A   1      12.000  10.000  10.000  1.00 10.00           C\n"
+        "END\n"
+    )
+    out = tmp_path / "clean.pdb"
+    clean_structure(altloc_pdb, out)
+    ca_lines = [l for l in out.read_text().splitlines() if l.startswith("ATOM") and " CA " in l]
+    assert len(ca_lines) == 1
+
+
 def test_clean_structure_keeps_hetatm_when_specified(tmp_path):
     # 1UBQ has no ligands but we can verify the keep_hetatm param is respected
     out = tmp_path / "clean.pdb"

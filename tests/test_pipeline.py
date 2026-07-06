@@ -40,11 +40,28 @@ def test_output_root_resolved_to_absolute(tmp_path, monkeypatch):
 
 def test_pipeline_skips_completed_stages(tmp_path):
     p = _make_pipeline(tmp_path)
+    (tmp_path / "output" / "stage1").mkdir(parents=True)
     p.checkpoint.mark_complete("stage1", {"modified_pdb": "fake.pdb"})
     mock_stage = MagicMock()
     with _patched_gmx(), patch.object(p, "_build_stage", return_value=mock_stage):
         p.execute(only_stages="1")
     mock_stage.run.assert_not_called()
+
+
+def test_pipeline_reruns_stage_if_checkpoint_complete_but_dir_missing(tmp_path):
+    """Regression test: checkpoint.json can say a stage is complete while its
+    output directory was deleted externally (cleanup, failed rsync, manual
+    edit) — resuming must re-run the stage, not silently skip it and let a
+    later stage fail with a confusing 'run stageN first' error."""
+    p = _make_pipeline(tmp_path)
+    p.checkpoint.mark_complete("stage1", {"modified_pdb": "fake.pdb"})
+    assert not (tmp_path / "output" / "stage1").exists()
+
+    mock_stage = MagicMock()
+    mock_stage.run.return_value = MagicMock(artifacts={})
+    with _patched_gmx(), patch.object(p, "_build_stage", return_value=mock_stage):
+        p.execute(only_stages="1")
+    mock_stage.run.assert_called_once()
 
 
 def test_start_from_skips_earlier_stages(tmp_path):
@@ -107,6 +124,27 @@ def test_atomic_failure_cleans_tmp(tmp_path):
 
     assert not (tmp_path / "output" / ".stage1_tmp").exists()
     assert not (tmp_path / "output" / "stage1").exists()
+
+
+def test_bookkeeping_failure_after_rename_preserves_final_dir(tmp_path):
+    """Regression test: once tmp_dir has been renamed to final_dir, the real
+    stage output (potentially a multi-hour GROMACS run) must survive even if
+    something after the rename (checkpoint write, UI callback) raises."""
+    p = _make_pipeline(tmp_path)
+    final_dir = tmp_path / "output" / "stage1"
+
+    mock_stage = MagicMock()
+    mock_stage.run.return_value = MagicMock(artifacts={})
+    with (
+        _patched_gmx(),
+        patch.object(p, "_build_stage", return_value=mock_stage),
+        patch.object(p.checkpoint, "mark_complete", side_effect=RuntimeError("disk full")),
+    ):
+        with pytest.raises(RuntimeError, match="disk full"):
+            p.execute(only_stages="1")
+
+    assert final_dir.exists(), "completed stage output must not be deleted by a post-rename bookkeeping failure"
+    assert not (tmp_path / "output" / ".stage1_tmp").exists()
 
 
 def test_orphan_tmp_dirs_removed_at_startup(tmp_path):

@@ -14,7 +14,14 @@ class SaltBridgesPlugin(AnalysisPlugin):
 
     def run(self, universe: mda.Universe, config: dict) -> pd.DataFrame:
         cutoff = config.get("cutoff_angstrom", 4.0)
-        acidic = universe.select_atoms("(resname ASP GLU) and (name OD1 OD2 OE1 OE2)")
+        # Phosphate oxygens (SEP/TPO/PTR) are a strongly anionic group that
+        # commonly forms salt bridges with nearby Lys/Arg — this is often the
+        # single most relevant interaction for a phosphorylation study, so it
+        # must not be silently excluded alongside the canonical acidic residues.
+        acidic = universe.select_atoms(
+            "((resname ASP GLU) and (name OD1 OD2 OE1 OE2)) "
+            "or ((resname SEP TPO PTR) and (name O1P O2P O3P))"
+        )
         basic = universe.select_atoms(
             "(resname LYS and name NZ) or (resname ARG and name NH1 NH2 NE)"
         )
