@@ -17,3 +17,13 @@ class ForceField(ABC):
     @abstractmethod
     def pdb2gmx_flag(self) -> str:
         """Return the -ff argument value for gmx pdb2gmx, e.g. 'charmm36m-jul2022'."""
+
+    def build_ncaa_forcefield(self, bundle_dirs: list[Path], base_ff_dir: Path, output_dir: Path) -> str:
+        """Build a per-run force-field directory extended with ncAA residue
+        bundles, returning the -ff argument value to use with it. Not every
+        force field supports this (see CHARMM36mFF for the only current
+        implementation)."""
+        raise NotImplementedError(
+            f"{self.name} does not support noncanonical amino acids. "
+            "Use forcefield: charmm36m instead."
+        )

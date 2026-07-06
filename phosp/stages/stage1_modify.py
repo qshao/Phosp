@@ -8,6 +8,7 @@ from Bio.PDB import PDBIO
 
 from phosp.exceptions import PhospError, StageInputError
 from phosp.modification.base import get_modifier
+from phosp.modification.ncaa import NcaaModifier
 from phosp.stages.base import Stage, StageResult
 from phosp.utils.structure import clean_structure, fetch_structure, protonate_structure
 
@@ -44,6 +45,13 @@ class Stage1Modify(Stage):
                 if (site.chain, site.resid) not in present:
                     raise StageInputError(
                         f"Modification site chain {site.chain} resid {site.resid} "
+                        f"not found in {src.path}. "
+                        "Check the chain ID and residue number in your config."
+                    )
+            for site in self.config.modification.ncaa_sites:
+                if (site.chain, site.resid) not in present:
+                    raise StageInputError(
+                        f"ncAA site chain {site.chain} resid {site.resid} "
                         f"not found in {src.path}. "
                         "Check the chain ID and residue number in your config."
                     )
@@ -90,6 +98,7 @@ class Stage1Modify(Stage):
                 modifier = get_modifier(site.mod_type, cfg.forcefield)
                 structure = modifier.apply(structure, chain_id=site.chain, resid=site.resid)
                 manifest.append({
+                    "kind": "ptm",
                     "chain": site.chain,
                     "resid": site.resid,
                     "original_resname": site.resname,
@@ -97,6 +106,19 @@ class Stage1Modify(Stage):
                     "new_resname": modifier.new_resname,
                 })
                 logger.info("Applied %s to %s%d", site.mod_type, site.chain, site.resid)
+
+            for site in cfg.modification.ncaa_sites:
+                ncaa_modifier = NcaaModifier(site.bundle_dir, site.new_resname)
+                structure = ncaa_modifier.apply(structure, chain_id=site.chain, resid=site.resid)
+                manifest.append({
+                    "kind": "ncaa",
+                    "chain": site.chain,
+                    "resid": site.resid,
+                    "original_resname": site.resname,
+                    "new_resname": site.new_resname,
+                    "bundle_dir": str(site.bundle_dir),
+                })
+                logger.info("Applied ncAA bundle %s to %s%d", site.bundle_dir, site.chain, site.resid)
 
             # 5. Write modified structure
             modified_pdb = out / "modified.pdb"

@@ -96,29 +96,11 @@ class Pipeline:
             )
         if ff != "charmm36m":
             return
-        import os
-        import re
-        import subprocess
+        from phosp.forcefields.discovery import discover_top_dir
 
-        # GMXLIB is GROMACS's own mechanism for adding a force-field search
-        # path without write access to the binary's install prefix (e.g. a
-        # shared/read-only GROMACS build). Prefer it when it already has the
-        # force field, so we don't require write access to Data prefix.
-        gmxlib = os.environ.get("GMXLIB")
-        if gmxlib and (Path(gmxlib) / "charmm36m-jul2022.ff").exists():
-            top_dir = Path(gmxlib)
-        else:
-            try:
-                out = subprocess.run(
-                    [self.config.gromacs.binary, "--version"], capture_output=True, text=True
-                ).stdout
-                m = re.search(r"Data prefix:\s*(.+)", out)
-                if not m:
-                    return
-                top_dir = Path(m.group(1).strip()) / "share" / "gromacs" / "top"
-            except Exception:
-                return
-
+        top_dir = discover_top_dir(self.config.gromacs.binary, "charmm36m-jul2022.ff")
+        if top_dir is None:
+            return
         ff_dir = top_dir / "charmm36m-jul2022.ff"
         if not ff_dir.exists():
             raise PhospError(
@@ -132,16 +114,17 @@ class Pipeline:
                 "See README.md for the full setup procedure."
             )
 
-        # Only the residue types this run's modification.sites actually patch
-        # need to be registered as "Protein" in residuetypes.dat, not a fixed
-        # phospho-only list — otherwise adding a new PTM type silently skips
-        # this check.
+        # Only the residue types this run's modification.sites/ncaa_sites
+        # actually patch need to be registered as "Protein" in
+        # residuetypes.dat, not a fixed phospho-only list — otherwise adding
+        # a new PTM/ncAA type silently skips this check.
         from phosp.modification.base import get_modifier
 
         required = {
             get_modifier(site.mod_type, "charmm36m").new_resname
             for site in self.config.modification.sites
         }
+        required |= {site.new_resname for site in self.config.modification.ncaa_sites}
 
         res_file = top_dir / "residuetypes.dat"
         content = res_file.read_text()

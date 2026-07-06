@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 
 from phosp.config import ModificationConfig
-from phosp.exceptions import StageInputError
+from phosp.exceptions import PhospError, StageInputError
+from phosp.forcefields.discovery import discover_top_dir
 from phosp.protocols.protocol import Protocol
 from phosp.stages.base import Stage, StageResult
 
@@ -28,13 +29,33 @@ class Stage2Prepare(Stage):
         modified_pdb = stage1_dir / "modified.pdb"
         manifest = json.loads((stage1_dir / "modification_manifest.json").read_text())
         sites = cfg.modification.sites
+        ncaa_sites = cfg.modification.ncaa_sites
 
-        # 1. Build topology
+        # 1. Build topology — if there are ncAA sites, first build a per-run
+        # extended force-field directory (residue bundles merged in) and
+        # point pdb2gmx at it instead of the force field's default flag.
+        ff_flag_override = None
+        if ncaa_sites:
+            ff_dirname = f"{self.forcefield.pdb2gmx_flag()}.ff"
+            top_dir = discover_top_dir(cfg.gromacs.binary, ff_dirname)
+            if top_dir is None or not (top_dir / ff_dirname).exists():
+                raise PhospError(
+                    f"ncAA sites are configured but the base force field "
+                    f"directory {ff_dirname} could not be located (checked "
+                    f"GMXLIB and the gmx Data prefix)."
+                )
+            ff_flag_override = self.forcefield.build_ncaa_forcefield(
+                bundle_dirs=[site.bundle_dir for site in ncaa_sites],
+                base_ff_dir=top_dir / ff_dirname,
+                output_dir=out,
+            )
+
         topology = self.engine.prepare_topology(
             modified_pdb,
             self.forcefield,
             output_dir=out,
             water_model=sim.water_model,
+            ff_flag_override=ff_flag_override,
         )
         topology = self.forcefield.patch_topology(topology, sites)
 

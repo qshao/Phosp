@@ -166,6 +166,12 @@ def validate(
     if cfg.input.source == "pdb" and cfg.input.path and not cfg.input.path.exists():
         errors.append(f"input PDB not found: {cfg.input.path}")
 
+    if cfg.modification.ncaa_sites:
+        from phosp.modification.ncaa_bundle import lint_bundle
+        for site in cfg.modification.ncaa_sites:
+            for e in lint_bundle(site.bundle_dir):
+                errors.append(f"ncAA bundle {site.bundle_dir} ({site.new_resname}): {e}")
+
     if errors:
         for e in errors:
             typer.echo(f"  ✗ {e}", err=True)
@@ -183,6 +189,27 @@ def validate(
     typer.echo(f"  ✓ {gmx} found")
     typer.echo(f"  ✓ {pdb2pqr} found")
     typer.echo("  ✓ Force field ready")
+
+
+@app.command(name="validate-ncaa-bundle", help="Check an ncAA parameter bundle directory for internal consistency, without running GROMACS.")
+def validate_ncaa_bundle(
+    bundle_dir: Path = typer.Argument(..., help="Directory containing residue.rtp, residue.hdb, template.pdb[, params.itp]"),
+) -> None:
+    from phosp.logging import configure_logging
+    from phosp.modification.ncaa_bundle import lint_bundle
+    configure_logging()
+
+    if not bundle_dir.is_dir():
+        typer.echo(f"Error: not a directory: {bundle_dir}", err=True)
+        raise typer.Exit(code=1)
+
+    errors = lint_bundle(bundle_dir)
+    if errors:
+        for e in errors:
+            typer.echo(f"  ✗ {e}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"  ✓ {bundle_dir} is internally consistent")
 
 
 @app.command(name="predict-sites", help="Predict phosphorylatable residues using NetPhos.")

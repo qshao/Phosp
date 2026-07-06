@@ -78,6 +78,27 @@ def test_validate_accepts_valid_config():
     assert "valid" in result.output.lower()
 
 
+def test_validate_ncaa_bundle_accepts_valid_bundle(tmp_path: Path):
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "residue.rtp").write_text("[ XAA ]\n  [ atoms ]\n        N      NH1  0.0000   1\n")
+    (bundle / "residue.hdb").write_text("XAA        0\n")
+    (bundle / "template.pdb").write_text(
+        "ATOM      1  N   XAA A   1       0.000   0.000   0.000  1.00  0.00           N\nEND\n"
+    )
+    result = runner.invoke(app, ["validate-ncaa-bundle", str(bundle)])
+    assert result.exit_code == 0, result.output
+    assert "consistent" in result.output.lower()
+
+
+def test_validate_ncaa_bundle_rejects_missing_files(tmp_path: Path):
+    bundle = tmp_path / "empty_bundle"
+    bundle.mkdir()
+    result = runner.invoke(app, ["validate-ncaa-bundle", str(bundle)])
+    assert result.exit_code == 1
+    assert "missing required file" in result.output.lower()
+
+
 def test_run_dry_run_skips_execution(tmp_path: Path):
     """Test that dry-run runs preflight checks but does not execute stages."""
     config_path = tmp_path / "config.yaml"

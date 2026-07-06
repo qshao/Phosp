@@ -39,16 +39,22 @@ class GROMACSEngine(MDEngine):
         forcefield,
         output_dir: Path | None = None,
         water_model: str = "tip3p",
+        ff_flag_override: str | None = None,
     ) -> Path:
         if output_dir is None:
             output_dir = pdb.parent
         output_dir.mkdir(parents=True, exist_ok=True)
+        # ff_flag_override points pdb2gmx at a per-run extended force-field
+        # directory (see CHARMM36mFF.build_ncaa_forcefield) instead of the
+        # force field's own default flag — cwd=output_dir is what makes
+        # GROMACS's cwd-first "-ff <name>" search find it there.
+        ff_flag = ff_flag_override if ff_flag_override is not None else forcefield.pdb2gmx_flag()
         _run_gmx(
             [self._binary, "pdb2gmx",
              "-f", str(pdb.resolve()),
              "-o", str(output_dir / "processed.gro"),
              "-p", str(output_dir / "topol.top"),
-             "-ff", forcefield.pdb2gmx_flag(),
+             "-ff", ff_flag,
              "-water", water_model,
              "-ignh"],
             cwd=output_dir,
@@ -138,12 +144,12 @@ class GROMACSEngine(MDEngine):
             "-ntmpi", "1",
         ]
         if gpu_id is not None:
-            mdrun_cmd += ["-gpu_id", str(gpu_id), "-nb", "gpu", "-pme", "gpu", "-bonded", "gpu"]
+            mdrun_cmd += ["-gpu_id", str(gpu_id), "-nb", "gpu"]
             if phase != "minimization":
-                # GPU-resident update (-update gpu) requires a dynamical integrator
-                # (md/md-vv/sd); minimization uses steep and GROMACS fatal-errors if
-                # -update gpu is passed to it.
-                mdrun_cmd += ["-update", "gpu"]
+                # PME-on-GPU, bonded-on-GPU, and GPU-resident update all require
+                # a dynamical integrator (md/md-vv/sd); minimization uses steep
+                # and GROMACS fatal-errors if any of these are passed to it.
+                mdrun_cmd += ["-pme", "gpu", "-bonded", "gpu", "-update", "gpu"]
         _run_gmx(mdrun_cmd, cwd=output_dir, timeout=self._timeout)
 
         return SimulationResult(

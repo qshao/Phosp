@@ -56,8 +56,43 @@ class ModificationSite(BaseModel):
         return self
 
 
+# Residue codes already meaningful to the bundled force fields — a user-chosen
+# ncAA new_resname must not collide with any of these or pdb2gmx would pick up
+# the wrong (or an ambiguous) residue definition.
+_RESERVED_RESNAMES = frozenset({
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+    "SEP", "TPO", "PTR", "ALY", "MLZ", "MLY", "M3L",
+})
+
+
+class NcaaSite(BaseModel):
+    """A noncanonical amino acid site backed by a user-supplied parameter
+    bundle (see the ncAA plan) — kept separate from ModificationSite because
+    new_resname/bundle_dir are open-ended, not validated against a closed
+    registry the way mod_type is."""
+
+    chain: str
+    resid: int
+    resname: str       # source residue being replaced, e.g. "MET"
+    new_resname: str   # user-chosen 3-letter code for the bundle's residue
+    bundle_dir: Path    # directory containing residue.rtp/residue.hdb/template.pdb[/params.itp]
+
+    @model_validator(mode="after")
+    def check_new_resname(self) -> NcaaSite:
+        if self.new_resname in _RESERVED_RESNAMES:
+            raise ValueError(
+                f"new_resname {self.new_resname!r} collides with an existing "
+                f"force-field residue code; choose a distinct 3-letter code"
+            )
+        if not self.bundle_dir.is_dir():
+            raise ValueError(f"bundle_dir not found: {self.bundle_dir}")
+        return self
+
+
 class ModificationConfig(BaseModel):
-    sites: list[ModificationSite]
+    sites: list[ModificationSite] = Field(default_factory=list)
+    ncaa_sites: list[NcaaSite] = Field(default_factory=list)
 
 
 class HPCConfig(BaseModel):
