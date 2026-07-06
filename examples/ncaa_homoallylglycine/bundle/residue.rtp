@@ -1,0 +1,52 @@
+[ HAG ]
+; Homoallylglycine (2-amino-5-hexenoic acid), resname HAG.
+; Side chain: -CH2-CH2-CH=CH2 (one CH2 longer than the native CHARMM36m
+; residue 2AG, allylglycine, whose validated CG2D1/CG2D2/HGA4/HGA5 alkene
+; atom types and partial charges this entry reuses directly). HAG itself is
+; NOT present in charmm36m-jul2022 -- this is the worked example for the
+; ncAA bundle format (see phosp docs). Every atom type and every bonded
+; parameter this residue needs (bonds, angles, dihedrals for CG321-CG321,
+; CG321-CG2D1, CG2D1=CG2D2, and their hydrogens) already exists in
+; ffbonded.itp/ffnonbonded.itp -- confirmed by inspecting the installed
+; force field before writing this -- so no params.itp is needed here.
+  [ atoms ]
+        N      NH1 -0.4700   1
+       HN        H  0.3100   1
+       CA      CT1  0.0700   1
+       HA      HB1  0.0900   1
+       CB    CG321 -0.1800   2
+      HB1     HGA2  0.0900   2
+      HB2     HGA2  0.0900   2
+       CG    CG321 -0.1800   3
+      HG1     HGA2  0.0900   3
+      HG2     HGA2  0.0900   3
+       CD    CG2D1 -0.1500   4
+       HD     HGA4  0.1500   4
+       CE    CG2D2 -0.4200   5
+      HE1     HGA5  0.2100   5
+      HE2     HGA5  0.2100   5
+        C        C  0.5100   6
+        O        O -0.5100   6
+  [ bonds ]
+        N    HN
+        N    CA
+        C    CA
+        C    +N
+       CA    HA
+       CA    CB
+       CB   HB1
+       CB   HB2
+       CB    CG
+       CG   HG1
+       CG   HG2
+       CG    CD
+       CD    HD
+       CD    CE
+       CE   HE1
+       CE   HE2
+        O     C
+  [ impropers ]
+        N    -C    CA    HN
+        C    CA    +N     O
+  [ cmap ]
+       -C     N    CA     C    +N

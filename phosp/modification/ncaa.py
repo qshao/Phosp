@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 # these three (non-collinear) points fully determine the rigid-body transform.
 _BACKBONE_ATOMS = ("N", "CA", "C")
 
+# The only atoms kept from the *real* structure — every side-chain atom name
+# (CB, CG, ...) follows the same Greek-letter convention across every amino
+# acid regardless of actual chemistry, so a same-named atom already present
+# on the target residue (e.g. the old side chain's own CB) is NOT the same
+# atom as the template's CB; it must be discarded, not preserved by name.
+_PRESERVED_ATOMS = frozenset({"N", "CA", "C", "O"})
+
 
 def kabsch_fit(mobile: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Rotation and translation that best superpose mobile (N,3) onto target (N,3),
@@ -51,10 +58,16 @@ class NcaaModifier:
         target = np.array([residue[name].get_vector().get_array() for name in _BACKBONE_ATOMS])
         R, t = kabsch_fit(mobile, target)
 
-        existing_names = {a.get_name() for a in residue.get_atoms()}
+        # Strip everything but the preserved backbone from the real residue —
+        # the template's side chain fully replaces the old one, not merges
+        # with it by coincidental name match.
+        for atom in list(residue.get_atoms()):
+            if atom.get_name() not in _PRESERVED_ATOMS:
+                residue.detach_child(atom.get_id())
+
         for atom in template_residue.get_atoms():
             name = atom.get_name()
-            if name in existing_names:
+            if name in _PRESERVED_ATOMS:
                 continue
             new_coord = R @ atom.get_vector().get_array() + t
             element = atom.element.strip() if atom.element and atom.element.strip() else name[0]

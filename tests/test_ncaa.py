@@ -143,6 +143,27 @@ def test_ncaa_modifier_grafts_novel_atom_and_renames_residue(tmp_path):
     assert "HCX1" in residue and "HCX2" in residue and "HCX3" in residue
 
 
+def test_ncaa_modifier_replaces_old_side_chain_despite_name_collisions(tmp_path):
+    """Regression test: side-chain atom names (CB, CG, ...) follow the same
+    Greek-letter convention across every amino acid, so LYS's own CB is NOT
+    the template's CB just because they share a name — the old side chain
+    (CG/CD/CE/NZ, none of which the XAA template defines) must be fully
+    removed, not left dangling alongside the new one."""
+    bundle = _write_bundle(tmp_path)
+    struct = _load_ubiquitin()
+    original_cb = struct[0]["A"][(" ", 48, " ")]["CB"].get_vector().get_array().copy()
+
+    modifier = NcaaModifier(bundle, new_resname="XAA")
+    modified = modifier.apply(struct, chain_id="A", resid=48)
+
+    residue = modified[0]["A"][(" ", 48, " ")]
+    for stale_name in ("CG", "CD", "CE", "NZ"):
+        assert stale_name not in residue, f"{stale_name} from the old LYS side chain should be removed"
+    # CB is redefined by the template, not the old residue's CB kept in place
+    new_cb = residue["CB"].get_vector().get_array()
+    assert not np.allclose(original_cb, new_cb)
+
+
 def test_ncaa_modifier_preserves_existing_backbone_positions(tmp_path):
     bundle = _write_bundle(tmp_path)
     struct = _load_ubiquitin()

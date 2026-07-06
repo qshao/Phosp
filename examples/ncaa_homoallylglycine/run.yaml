@@ -1,0 +1,44 @@
+# Noncanonical amino acid (ncAA) worked example — homoallylglycine (HAG)
+# grafted onto ubiquitin residue 48 (chain A), purely as a demonstration of
+# the ncAA bundle mechanism. See README.md in this directory for the
+# chemistry and for why K48 (not a real Met surrogate site) is used here.
+#
+# Usage:
+#   phosp validate-ncaa-bundle examples/ncaa_homoallylglycine/bundle
+#   phosp validate examples/ncaa_homoallylglycine/run.yaml
+#   phosp run examples/ncaa_homoallylglycine/run.yaml
+
+input:
+  source: pdb
+  path: tests/fixtures/ubiquitin.pdb
+  ph: 7.4
+
+modification:
+  sites: []
+  ncaa_sites:
+    - chain: A
+      resid: 48
+      resname: LYS
+      new_resname: HAG
+      bundle_dir: examples/ncaa_homoallylglycine/bundle
+
+forcefield: charmm36m
+protocol: globular_protein
+
+simulation:
+  production_time_ns: 10.0
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  runner: local
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+  rmsd:
+    selection: name CA
+  rmsf:
+    selection: name CA
