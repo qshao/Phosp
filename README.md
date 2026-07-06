@@ -1,10 +1,12 @@
 # phosp
 
-Automated pipeline for protein phosphorylation + GROMACS molecular dynamics simulation.
-Given a protein structure and one or more phosphorylation sites, phosp handles everything from chemical modification through production MD to a self-contained HTML analysis report — in a single command.
+Automated pipeline for protein post-translational modification (PTM) + GROMACS molecular dynamics simulation.
+Given a protein structure and one or more modification sites, phosp handles everything from chemical modification through production MD to a self-contained HTML analysis report — in a single command.
 
 ```
-Stage 1  Chemical modification    THR → TPO (pThr),  SER → SEP (pSer),  TYR → PTR (pTyr)
+Stage 1  Chemical modification    Phosphorylation (pSer/pThr/pTyr), acetylation (acetylLys),
+                                   methylation (methylLys1/2/3), or a noncanonical amino acid (ncAA)
+                                   via a user-supplied parameter bundle
 Stage 2  MD preparation           pdb2pqr protonation → topology (pdb2gmx) → solvation → ions
 Stage 3  MD simulation            Minimization → NVT equilibration → NPT equilibration → Production
 Stage 4  Analysis                 RMSD · RMSF · Rg · 2° structure · H-bonds · SASA · PCA · DCCM + HTML report
@@ -193,13 +195,14 @@ output/
 
 ## Examples
 
-Three ready-to-run configs are in `examples/`:
+Ready-to-run configs are in `examples/`:
 
 | Example | What it shows |
 |---|---|
 | `examples/ubiquitin_pThr/` | pThr66 on ubiquitin — fastest end-to-end test |
 | `examples/multisite_pSer/` | Two pSer sites with a full analysis suite |
 | `examples/uniprot_input/` | Fetch structure from AlphaFold / RCSB by UniProt ID |
+| `examples/ncaa_homoallylglycine/` | A complete noncanonical amino acid parameter bundle, worked example |
 
 ```bash
 # Quickest end-to-end test (uses bundled ubiquitin PDB, ~40 s with the quick protocol)
@@ -231,11 +234,48 @@ modification:
   sites:
     - chain: A            # PDB chain ID (case-sensitive)
       resid: 66           # residue sequence number as it appears in the PDB
-      resname: THR        # must be SER, THR, or TYR — must match the PDB
-      phospho_type: pThr  # pSer (→ SEP), pThr (→ TPO), pTyr (→ PTR)
+      resname: THR        # must match mod_type's expected source residue — see table below
+      mod_type: pThr      # see supported mod_type values below
 ```
 
-Multiple sites can be listed. Pydantic validates that `resname` and `phospho_type` are consistent (e.g. `SER` + `pSer`).
+Multiple sites can be listed. Pydantic validates that `resname` and `mod_type` are consistent (e.g. `SER` + `pSer`).
+
+Supported `mod_type` values:
+
+| `mod_type` | Source `resname` | New residue | Modification |
+|---|---|---|---|
+| `pSer` | SER | SEP | Phosphorylation |
+| `pThr` | THR | TPO | Phosphorylation |
+| `pTyr` | TYR | PTR | Phosphorylation |
+| `acetylLys` | LYS | ALY | Acetylation |
+| `methylLys1` | LYS | MLZ | Mono-methylation |
+| `methylLys2` | LYS | MLY | Di-methylation |
+| `methylLys3` | LYS | M3L | Tri-methylation (quaternary ammonium) |
+
+All seven are patched using parameters CHARMM36m already ships natively — no extra force-field files needed. Adding a new PTM type in this style (a new `Modifier` subclass reusing existing force-field parameters) is a self-contained change; see `phosp/modification/` for the pattern.
+
+### Noncanonical amino acids (ncAA)
+
+For an amino acid with no native CHARMM36m parameters at all (a genuinely novel side chain), phosp supports a separate mechanism driven by a user-supplied parameter bundle rather than the closed `mod_type` registry above:
+
+```yaml
+modification:
+  sites: []
+  ncaa_sites:
+    - chain: A
+      resid: 48
+      resname: LYS              # source residue being replaced
+      new_resname: HAG           # your chosen 3-letter code for the bundle's residue
+      bundle_dir: path/to/bundle # directory with residue.rtp/residue.hdb/template.pdb[/params.itp]
+```
+
+phosp does not derive the bundle's chemistry itself — that comes from external parameterization (CGenFF/ParamChem or antechamber/GAFF, converted to GROMACS `.rtp`/`.hdb` syntax) or hand-authoring. What phosp automates: grafting the bundle's `template.pdb` onto the real structure via backbone superposition, merging the bundle into a per-run extended force-field directory, and validating internal consistency before ever invoking GROMACS:
+
+```bash
+phosp validate-ncaa-bundle path/to/bundle
+```
+
+See [examples/ncaa_homoallylglycine/](examples/ncaa_homoallylglycine/README.md) for a complete worked example, including how the bundle's `.rtp`/`.hdb` blocks are constructed from parameters already published in CHARMM36m/CGenFF.
 
 ### `forcefield`
 
@@ -387,7 +427,12 @@ phosp run <config>
 
 phosp validate <config>
   Parse config, check GROMACS binary, pdb2pqr, and CHARMM36m installation.
+  Also lints any ncaa_sites bundles referenced by the config.
   Exits 0 on success, 1 on failure.
+
+phosp validate-ncaa-bundle <bundle-dir>
+  Check an ncAA parameter bundle (residue.rtp/residue.hdb/template.pdb[/params.itp])
+  for internal consistency, without running GROMACS. Exits 0 on success, 1 on failure.
 
 phosp predict-sites <config>
   Run NetPhos to predict phosphorylatable S/T/Y residues.
@@ -454,7 +499,7 @@ All plugins produce a CSV file and a PNG plot, collected into the HTML report.
 | `secondary_structure` | — | Helix / sheet fraction vs. time | |
 | `hbond` | — | H-bond count vs. time | |
 | `contacts` | `contacts.selection`, `contacts.cutoff_angstrom` | Cα contact count | default cutoff: 8 Å |
-| `sasa` | `sasa.residues` | SASA vs. time | per-residue or total |
+| `sasa` | `sasa.residues` | SASA vs. time | full-protein total always included; if `residues` is set, adds the listed residues' SASA computed in full-protein context (not in isolation) |
 | `pca` | `pca.selection` | PC1 vs. PC2 scatter | default: `name CA` |
 | `dccm` | `dccm.selection` | Dynamic cross-correlation matrix | |
 | `salt_bridges` | `salt_bridges.cutoff_angstrom` | Salt-bridge count vs. time | default cutoff: 4 Å |
@@ -603,7 +648,10 @@ printf "SEP\tProtein\nTPO\tProtein\nPTR\tProtein\n" >> "$GMXTOP/residuetypes.dat
 ```
 
 **`Config validation failed: modification.sites.0: …`**
-`resname` must match `phospho_type` exactly: `SER`/`pSer`, `THR`/`pThr`, `TYR`/`pTyr`.
+`resname` must match `mod_type`'s expected source residue exactly — see the [supported `mod_type` table](#modification-block).
+
+**ncAA bundle errors from `phosp validate-ncaa-bundle` or `phosp validate`**
+These check internal consistency only (atom names match across `residue.rtp`/`residue.hdb`/`template.pdb`, charges sum to an integer) — they can't verify the bundle is chemically correct. See [examples/ncaa_homoallylglycine/](examples/ncaa_homoallylglycine/README.md) for a working reference bundle to compare against.
 
 **`GROMACS binary 'gmx' not found`**
 Either install GROMACS or set `gromacs.binary` to the correct path/name in the config.
@@ -643,7 +691,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-167 tests, ~5 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
+214 tests, ~10 s on a laptop. No GROMACS or pdb2pqr required for the test suite (all external calls are mocked).
 
 ---
 
@@ -657,8 +705,8 @@ phosp/
 ├── stages/                 # Stage 1–4 implementations
 ├── engines/gromacs.py      # GROMACS subprocess wrapper
 ├── runners/                # local.py, slurm.py, pbs.py — simulation backends
-├── forcefields/            # CHARMM36m parameter handling
-├── modification/           # pSer / pThr / pTyr chemical modification
+├── forcefields/            # CHARMM36m/AMBER parameter handling + ncAA force-field merging
+├── modification/           # PTM patches (pSer/pThr/pTyr/acetylLys/methylLys1-3) + ncAA grafting/linting
 ├── plugins/analysis/       # All analysis plugins
 ├── protocols/              # Built-in MD protocol YAML files
 ├── templates/              # Jinja2 templates for MDP, HPC scripts, HTML report

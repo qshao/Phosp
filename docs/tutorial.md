@@ -42,13 +42,15 @@ When using your own protein:
 
 phosp's Stage 1 replaces the residue in-place:
 
-| Original | Phospho-type | New residue | What changes |
+| Original | mod_type | New residue | What changes |
 |---|---|---|---|
 | SER | pSer | SEP | Serine → O-phosphoserine |
 | THR | pThr | TPO | Threonine → O-phosphothreonine |
 | TYR | pTyr | PTR | Tyrosine → O-phosphotyrosine |
 
 The phosphate group adds a formal charge of −2 at physiological pH. phosp handles the force field parameters automatically through CHARMM36m's native SEP/TPO/PTR definitions.
+
+This tutorial focuses on phosphorylation, but the same `modification.sites` mechanism also supports acetyl-lysine and mono/di/tri-methyl-lysine (`mod_type: acetylLys` / `methylLys1` / `methylLys2` / `methylLys3`) — see [Configuration reference](../README.md#modification-block) in the README for the full list. For amino acids with no native CHARMM36m parameters at all, phosp also supports noncanonical amino acids (ncAAs) via a user-supplied parameter bundle — see [examples/ncaa_homoallylglycine/](../examples/ncaa_homoallylglycine/README.md) for a complete worked example.
 
 ---
 
@@ -82,7 +84,7 @@ modification:
     - chain: A
       resid: 66
       resname: THR
-      phospho_type: pThr
+      mod_type: pThr
 
 forcefield: charmm36m
 protocol: globular_protein
@@ -396,15 +398,15 @@ modification:
     - chain: A
       resid: 10
       resname: SER
-      phospho_type: pSer
+      mod_type: pSer
     - chain: A
       resid: 66
       resname: THR
-      phospho_type: pThr
+      mod_type: pThr
     - chain: B
       resid: 147
       resname: TYR
-      phospho_type: pTyr
+      mod_type: pTyr
 ```
 
 ---
