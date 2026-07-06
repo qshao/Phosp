@@ -1,0 +1,52 @@
+# phosp benchmark — Human PHGDH (UniProt O43175), pT78 — GPU 0 (phosphorylated)
+# Research-scale run: 20 ns NVT, 50 ns NPT, 200 ns production.
+# Run WITHOUT --reference.
+# Uses the ulab222 GROMACS 2022.3 CUDA build, not gromacs-2026.3: the 2026.3
+# build segfaulted in libgromacs.so partway through a real 20ns NVT run on
+# GPU 1 (Xid/segfault, not a graceful GROMACS error) — not trusted for an
+# unattended multi-day job until root-caused. 2022.3 has run this exact
+# dual-GPU protocol successfully before.
+
+input:
+  source: uniprot
+  uniprot_id: O43175   # Human PHGDH (D-3-phosphoglycerate dehydrogenase)
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 78
+      resname: THR
+      mod_type: pThr
+
+forcefield: charmm36m
+protocol: globular_protein_research   # 20ns NVT / 50ns NPT (see phosp/protocols/globular_protein_research.yaml)
+
+gromacs:
+  binary: /data/ulab222/gromacs-2022.3/bin/gmx_gpu
+  pdb2pqr: pdb2pqr
+
+simulation:
+  production_time_ns: 200.0
+  output_freq_ps: 100.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  gpu_id: 0
+  runner: local
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+    - secondary_structure
+    - hbond
+    - contacts
+    - sasa
+  rmsd:
+    selection: name CA
+  rmsf:
+    selection: name CA
+  sasa:
+    residues: [78]   # phosphosite-only SASA: solvent exposure of pT78/T78 over time

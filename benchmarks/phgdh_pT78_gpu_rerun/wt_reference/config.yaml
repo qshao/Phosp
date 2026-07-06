@@ -1,0 +1,48 @@
+# phosp benchmark — Human PHGDH (UniProt O43175), WT reference — GPU 1
+# Re-run of benchmarks/phgdh_pT78, pinned to GPU 1. Run WITH --reference
+# (modification.sites is ignored in --reference mode, kept here only for
+# documentation so this file matches the phosphorylated config).
+
+input:
+  source: uniprot
+  uniprot_id: O43175   # Human PHGDH (D-3-phosphoglycerate dehydrogenase)
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 78
+      resname: THR
+      mod_type: pThr
+
+forcefield: charmm36m
+protocol: globular_protein
+
+gromacs:
+  binary: /home/AD/qsh226/software/gromacs-2026.3/bin/gmx
+  pdb2pqr: pdb2pqr
+
+simulation:
+  production_time_ns: 1.0
+  output_freq_ps: 10.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  gpu_id: 1
+  runner: local
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+    - secondary_structure
+    - hbond
+    - contacts
+    - sasa
+  rmsd:
+    selection: name CA
+  rmsf:
+    selection: name CA
+  sasa:
+    residues: [78]   # same residue index as pT78 run, for direct comparison

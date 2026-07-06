@@ -1,0 +1,46 @@
+# Extended-equilibration globular protein protocol:
+#   100 ns NVT (heavy-atom restraints) + 100 ns NPT (backbone restraints)
+#   + production, with a 1.0 nm vdW/Coulomb cutoff (vs. 1.2 nm default).
+box_padding_nm: 1.2
+water_model: tip3p
+salt_mM: 150
+rvdw_nm: 1.0
+rcoulomb_nm: 1.0
+minimization:
+  integrator: steep
+  nsteps: 50000
+  emtol: 1000.0
+  emstep: 0.01
+nvt:
+  dt: 0.002
+  nsteps: 50000000          # 100 ns
+  tcoupl: V-rescale
+  tc_grps: "Protein Non-Protein"
+  tau_t: "0.1 0.1"
+  ref_t: "300 300"
+  define: -DPOSRES_HEAVY
+npt:
+  dt: 0.002
+  nsteps: 50000000          # 100 ns
+  tcoupl: V-rescale
+  tc_grps: "Protein Non-Protein"
+  tau_t: "0.1 0.1"
+  ref_t: "300 300"
+  pcoupl: Parrinello-Rahman
+  pcoupltype: isotropic
+  tau_p: 2.0
+  ref_p: 1.0
+  compressibility: 4.5e-5
+  define: -DPOSRES_BB
+production:
+  dt: 0.002
+  tcoupl: V-rescale
+  tc_grps: "Protein Non-Protein"
+  tau_t: "0.1 0.1"
+  ref_t: "300 300"
+  pcoupl: Parrinello-Rahman
+  pcoupltype: isotropic
+  tau_p: 2.0
+  ref_p: 1.0
+  compressibility: 4.5e-5
+  define: ""

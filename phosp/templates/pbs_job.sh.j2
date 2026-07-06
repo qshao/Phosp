@@ -32,17 +32,17 @@ cd "$WORK"
 {% set use_gpu = (resources.gpus and resources.gpus > 0) or (gpu_id is not none) %}
 {% for phase in phases %}
 echo "=== Running {{ phase }} ==="
-{# GPU-resident update (-update gpu) requires a dynamical integrator
-   (md/md-vv/sd); minimization uses steep and GROMACS fatal-errors if
-   -update gpu is passed to it. -nb/-pme/-bonded gpu are pure per-step
-   force-calculation offloads, independent of the integrator, so they're
-   valid (and desirable) for minimization too — see engines/gromacs.py's
-   local mdrun path, which this must match. #}
-{% set use_update_gpu = use_gpu and phase != 'minimization' %}
+{# PME-on-GPU, bonded-on-GPU, and GPU-resident update all require a dynamical
+   integrator (md/md-vv/sd); minimization uses steep and GROMACS fatal-errors
+   on any of them if passed (confirmed against a real GROMACS 2026.3 binary:
+   "requires a dynamical integrator"). Only nonbonded-on-GPU (-nb gpu) is
+   accepted for minimization — see engines/gromacs.py's local mdrun path,
+   which this must match. #}
+{% set use_dynamical_gpu_offload = use_gpu and phase != 'minimization' %}
 {{ binary }} grompp -f ../stage2/{{ phase }}.mdp \
     -c {% if loop.first %}../stage2/ions.gro{% else %}{{ loop.previtem }}/{{ loop.previtem }}.gro{% endif %} \
     -p ../stage2/topol.top -o {{ phase }}/{{ phase }}.tpr -maxwarn 2
 {{ binary }} mdrun -v -deffnm {{ phase }}/{{ phase }} -ntmpi 1 -ntomp {{ resources.ntasks }} \
-    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu -pme gpu -bonded gpu {% endif %}{% if use_update_gpu %}-update gpu{% endif %}
+    {% if gpu_id is not none %}-gpu_id {{ gpu_id }} {% endif %}{% if use_gpu %}-nb gpu {% endif %}{% if use_dynamical_gpu_offload %}-pme gpu -bonded gpu -update gpu{% endif %}
 
 {% endfor %}

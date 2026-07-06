@@ -5,7 +5,12 @@ __pycache__/
 .pytest_cache/
 
 # Benchmark pipeline outputs (large, regenerable via `phosp run`)
-benchmarks/*/output/
-benchmarks/*/output_reference/
-benchmarks/*/*.log
-benchmarks/*/comparison/data/pbc_fixed/
+benchmarks/**/output/
+benchmarks/**/output_reference/
+benchmarks/**/.stage3_tmp/
+benchmarks/**/*.log
+benchmarks/**/*.stdout
+benchmarks/**/comparison/data/pbc_fixed/
+
+# Runtime artifacts from background-launcher scripts
+*.pid

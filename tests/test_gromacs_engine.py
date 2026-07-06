@@ -119,10 +119,12 @@ def test_run_phase_offloads_pme_bonded_update_to_gpu_when_gpu_configured(tmp_pat
     assert mdrun_args[mdrun_args.index("-update") + 1] == "gpu"
 
 
-def test_run_phase_omits_update_gpu_for_minimization_phase(tmp_path):
-    """-update gpu (GPU-resident update) requires a dynamical integrator (md/md-vv/sd);
-    the minimization phase uses the steep integrator and GROMACS fatal-errors if
-    -update gpu is passed. -nb/-pme/-bonded gpu are still valid for minimization."""
+def test_run_phase_only_offloads_nonbonded_to_gpu_for_minimization_phase(tmp_path):
+    """-pme gpu, -bonded gpu, and -update gpu all require a dynamical integrator
+    (md/md-vv/sd); the minimization phase uses the steep integrator and GROMACS
+    fatal-errors if any of them is passed (confirmed against a real GROMACS
+    2026.3 binary: "requires a dynamical integrator"). Only -nb gpu is valid
+    for minimization."""
     engine = GROMACSEngine()
     phase_dir = tmp_path / "minimization"
     phase_dir.mkdir()
@@ -140,8 +142,8 @@ def test_run_phase_omits_update_gpu_for_minimization_phase(tmp_path):
         )
     mdrun_args = mock_gmx.call_args_list[1].args[0]
     assert mdrun_args[mdrun_args.index("-nb") + 1] == "gpu"
-    assert mdrun_args[mdrun_args.index("-pme") + 1] == "gpu"
-    assert mdrun_args[mdrun_args.index("-bonded") + 1] == "gpu"
+    assert "-pme" not in mdrun_args
+    assert "-bonded" not in mdrun_args
     assert "-update" not in mdrun_args
 
 
@@ -388,9 +390,10 @@ def test_pbs_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_pat
         assert flag in content
 
 
-def test_pbs_script_omits_update_gpu_for_minimization_phase(tmp_path):
-    """-update gpu is invalid for the steep-integrator minimization phase (GROMACS
-    fatal-errors); -nb/-pme/-bonded gpu are still valid and should stay."""
+def test_pbs_script_only_offloads_nonbonded_to_gpu_for_minimization_phase(tmp_path):
+    """-pme gpu, -bonded gpu, and -update gpu are all invalid for the
+    steep-integrator minimization phase (GROMACS fatal-errors on any of
+    them); only -nb gpu is valid and should stay."""
     engine = GROMACSEngine()
     script = engine.generate_hpc_script(
         scheduler="pbs",
@@ -401,8 +404,8 @@ def test_pbs_script_omits_update_gpu_for_minimization_phase(tmp_path):
     )
     content = script.read_text()
     assert "-nb gpu" in content
-    assert "-pme gpu" in content
-    assert "-bonded gpu" in content
+    assert "-bonded gpu" not in content
+    assert "-pme gpu" not in content
     assert "-update gpu" not in content
 
 
@@ -452,9 +455,10 @@ def test_slurm_script_gpu_offload_flags_when_gpus_requested_but_id_unknown(tmp_p
         assert flag in content
 
 
-def test_slurm_script_omits_update_gpu_for_minimization_phase(tmp_path):
-    """-update gpu is invalid for the steep-integrator minimization phase (GROMACS
-    fatal-errors); -nb/-pme/-bonded gpu are still valid and should stay."""
+def test_slurm_script_only_offloads_nonbonded_to_gpu_for_minimization_phase(tmp_path):
+    """-pme gpu, -bonded gpu, and -update gpu are all invalid for the
+    steep-integrator minimization phase (GROMACS fatal-errors on any of
+    them); only -nb gpu is valid and should stay."""
     engine = GROMACSEngine()
     script = engine.generate_hpc_script(
         scheduler="slurm",
@@ -465,8 +469,8 @@ def test_slurm_script_omits_update_gpu_for_minimization_phase(tmp_path):
     )
     content = script.read_text()
     assert "-nb gpu" in content
-    assert "-pme gpu" in content
-    assert "-bonded gpu" in content
+    assert "-bonded gpu" not in content
+    assert "-pme gpu" not in content
     assert "-update gpu" not in content
 
 

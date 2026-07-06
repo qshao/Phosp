@@ -1,0 +1,52 @@
+# phosp benchmark — Human ASCL1 (UniProt P50553), pSer93 — GPU 0
+# Sequence confirmed against https://rest.uniprot.org/uniprotkb/P50553.fasta:
+# residue 93 is Ser.
+#
+# 100 ns NVT + 100 ns NPT equilibration, 300 ns production, 1.0 nm vdW/Coulomb
+# cutoff (see phosp/protocols/globular_protein_100ns_eq.yaml).
+#
+# run `phosp validate` to check it, then `phosp run` (pinned to GPU 0).
+
+input:
+  source: uniprot
+  uniprot_id: P50553   # Human ASCL1 (Achaete-scute homolog 1)
+  ph: 7.4
+
+modification:
+  sites:
+    - chain: A
+      resid: 93
+      resname: SER
+      mod_type: pSer
+
+forcefield: charmm36m
+protocol: globular_protein_100ns_eq
+
+gromacs:
+  binary: /home/AD/qsh226/software/gromacs-2026.3/bin/gmx
+  pdb2pqr: pdb2pqr
+
+simulation:
+  production_time_ns: 300.0
+  output_freq_ps: 100.0
+  water_model: tip3p
+  box_type: dodecahedron
+  salt_concentration_mM: 150.0
+  gpu_id: 0
+  runner: local
+
+analysis:
+  plugins:
+    - rmsd
+    - rmsf
+    - radius_of_gyration
+    - secondary_structure
+    - hbond
+    - contacts
+    - sasa
+  rmsd:
+    selection: name CA
+  rmsf:
+    selection: name CA
+  sasa:
+    residues: [93]   # phosphosite-only SASA: solvent exposure of pS93/S93 over time
