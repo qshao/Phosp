@@ -42,6 +42,34 @@ def test_rmsf_plugin_returns_per_residue(universe):
     assert "resid" in df.columns
 
 
+def test_rmsf_plugin_does_not_mutate_shared_universe(universe):
+    """stage4_analyze.py passes one Universe to every plugin in sequence —
+    RMSF's alignment must run on its own copy, not the shared one."""
+    import numpy as np
+    universe.trajectory[0]
+    before = universe.atoms.positions.copy()
+
+    RMSFPlugin().run(universe, {"selection": "name CA"})
+
+    universe.trajectory[0]
+    after = universe.atoms.positions
+    assert np.allclose(before, after)
+
+
+def test_rmsf_plugin_aligns_before_computing(universe):
+    """Regression test: unaligned RMSF mixes whole-body rotation/translation
+    into per-residue fluctuation, inflating it well above the aligned value."""
+    from MDAnalysis.analysis import rms
+
+    plugin = RMSFPlugin()
+    aligned_df = plugin.run(universe, {"selection": "name CA"})
+
+    ca = universe.select_atoms("name CA")
+    naive_rmsf = rms.RMSF(ca).run().results.rmsf
+
+    assert aligned_df["rmsf_angstrom"].mean() < naive_rmsf.mean()
+
+
 def test_rg_plugin_returns_per_frame(universe):
     plugin = RadiusOfGyrationPlugin()
     df = plugin.run(universe, {})
